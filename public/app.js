@@ -92,6 +92,15 @@
   }
   function hero(id) { return HEROES.find(h => h.id === id) || HEROES[0]; }
   function getSelf() { return currentRoom?.players?.find(p => p.id === playerId); }
+  function formatRunTime(seconds) {
+    const total = Math.max(0, Math.floor(Number(seconds) || 0));
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const remainder = total % 60;
+    return hours
+      ? `${hours}:${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`
+      : `${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`;
+  }
   function showToast(message) {
     toastNode.textContent = message;
     toastNode.classList.add('show');
@@ -742,7 +751,7 @@
           <div class="game-brand">SLIME SLAYER</div>
           <div class="wave-block"><div class="wave-value" id="wave-label">Wave 1 / 10</div></div>
           <div class="progress-wrap"><div class="progress-label"><span id="progress-copy">The slimes are gathering</span><span id="enemy-count">0 enemies</span></div><div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div></div>
-          <div class="top-stats"><span id="fps-counter" title="Rendered frames per second">-- FPS</span></div>
+          <div class="top-stats"><span class="run-clock" title="Run time">TIME <strong id="game-timer">00:00</strong></span><span id="fps-counter" title="Rendered frames per second">-- FPS</span></div>
           <button class="icon-btn gear-icon" title="Settings and controls" aria-label="Settings and controls" data-action="help">⚙</button>
         </header>
         <div class="game-body">
@@ -753,15 +762,22 @@
           <aside class="side-panel">
             <section class="side-card radar-card"><div class="side-title">Arena Radar</div><div class="minimap" id="minimap"></div></section>
             <section class="side-card"><div class="side-title">Champion Stats</div><div id="party-status"></div></section>
-            <section class="side-card run-totals-card"><div class="side-title">Run Stats</div><div class="run-total"><span>Kills:</span><strong id="kill-count">0</strong></div><div class="run-total"><span>Damage Done:</span><strong id="team-damage">0</strong></div><div class="run-total"><span>${solo ? 'Score:' : 'Party Score:'}</span><strong id="team-score">0</strong></div></section>
+            <section class="side-card run-totals-card"><div class="side-title">Run Stats</div><div class="run-total"><span>Time:</span><strong id="run-time">00:00</strong></div><div class="run-total"><span>Kills:</span><strong id="kill-count">0</strong></div><div class="run-total"><span>Damage Done:</span><strong id="team-damage">0</strong></div><div class="run-total"><span>${solo ? 'Score:' : 'Party Score:'}</span><strong id="team-score">0</strong></div></section>
             <section class="side-card controls-card"><div class="side-title">Controls</div><div class="controls-line"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move</div><div class="controls-line"><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> Move</div><div class="controls-line"><kbd>E</kbd> Champion ability</div><div class="controls-line muted">Get in range to attack</div></section>
             <section class="side-card ability-card"><div class="side-title">Special Ability</div><div class="ability-name" id="ability-name">${esc(getSelf()?.abilityName || hero(getSelf()?.hero).ability)}</div><p class="ability-description" id="ability-description">${esc(hero(getSelf()?.hero).abilityDescription)}</p><div class="ability-cooldown-row"><span>Cooldown</span><strong id="ability-cooldown">10s</strong></div><button class="ability-chip sidebar-ability" id="ability-chip" type="button">E · ${esc(getSelf()?.abilityName || 'Ability')}</button></section>
           </aside>
         </div>
-        <footer class="game-bottombar"><div class="hero-hud-group"><span id="hero-hud">${hero(getSelf()?.hero).id}</span><div class="hero-hp-track" id="hero-hp-track" role="progressbar" aria-label="Champion HP" aria-valuemin="0" aria-valuemax="${getSelf()?.maxHp || 100}" aria-valuenow="${Math.max(0, Math.ceil(getSelf()?.hp ?? 0))}"><div class="hero-hp-fill" id="hero-hp-fill" style="width:100%"></div></div></div><span class="muted">${solo ? 'Solo · SURVIVE' : 'Multiplayer · SURVIVE'}</span></footer>
+        <footer class="game-bottombar"><div class="hero-hud-group"><span id="hero-hud">${hero(getSelf()?.hero).id}</span><div class="hero-hp-track" id="hero-hp-track" role="progressbar" aria-label="Champion HP" aria-valuemin="0" aria-valuemax="${getSelf()?.maxHp || 100}" aria-valuenow="${Math.max(0, Math.ceil(getSelf()?.hp ?? 0))}"><div class="hero-hp-fill" id="hero-hp-fill" style="width:100%"></div></div></div><div class="game-footer-right"><span class="muted">${solo ? 'Solo · SURVIVE' : 'Multiplayer · SURVIVE'}</span>${solo ? '<button class="icon-btn solo-pause-btn" id="solo-pause" type="button" aria-label="Pause game" aria-pressed="false">ll</button>' : ''}</div></footer>
       </section>`;
     document.querySelector('[data-action="help"]').addEventListener('click', showSettings);
     document.querySelector('#ability-chip').addEventListener('click', () => act('ability'));
+    const pauseButton=document.querySelector('#solo-pause');
+    pauseButton?.addEventListener('click',async()=>{
+      pauseButton.disabled=true;
+      try { await act('pause',!Boolean(currentRoom?.game?.paused)); }
+      catch { /* act already displays the server error */ }
+      finally { if(pauseButton.isConnected) pauseButton.disabled=false; }
+    });
     setupMobilePad();
     warmSlimeSprites();
     startDrawing();
@@ -1091,10 +1107,21 @@
     const visualSelf=visualPlayers.find(player=>player.id===playerId)||self;
     const waveLabel=document.querySelector('#wave-label');
     if(waveLabel) waveLabel.textContent=`Wave ${g.wave} / 10`;
-    const total=g.waveDuration||20; const progress=g.phase==='wave'?Math.min(100,g.waveElapsed/total*100):g.phase==='upgrade'?100:100;
+    const runTime=formatRunTime(g.elapsedTime);
+    const timer=document.querySelector('#game-timer'); if(timer) timer.textContent=runTime;
+    const sidebarTime=document.querySelector('#run-time'); if(sidebarTime) sidebarTime.textContent=runTime;
+    const pauseButton=document.querySelector('#solo-pause');
+    if(pauseButton){
+      const paused=Boolean(g.paused);
+      pauseButton.hidden=currentRoom.mode!=='solo'||currentRoom.status!=='playing'||g.phase==='upgrade';
+      pauseButton.textContent=paused?'▶':'ll';
+      pauseButton.setAttribute('aria-label',paused?'Resume game':'Pause game');
+      pauseButton.setAttribute('aria-pressed',String(paused));
+    }
+    const total=g.waveDuration||20; const progress=g.phase==='wave'?Math.min(100,g.waveElapsed/total*100):g.phase==='upgrade'?100:g.phase==='intro'?0:100;
     const fill=document.querySelector('#progress-fill'); if(fill) fill.style.width=`${progress}%`;
     const copy=document.querySelector('#progress-copy');
-    if(copy) copy.textContent=g.phase==='upgrade'?'Choose an upgrade':g.phase==='won'?'The arena is clear':g.phase==='lost'?(currentRoom.mode==='solo'?'You have fallen':'The party has fallen'):`Survive the slime. ${Math.max(0,Math.ceil(total-g.waveElapsed))}s`;
+    if(copy) copy.textContent=g.phase==='upgrade'?'Choose an upgrade':g.phase==='intro'?'Prepare for the next wave':g.phase==='won'?'The arena is clear':g.phase==='lost'?(currentRoom.mode==='solo'?'You have fallen':'The party has fallen'):`Survive the slime. ${Math.max(0,Math.ceil(total-g.waveElapsed))}s`;
     const count=document.querySelector('#enemy-count'); if(count) count.textContent=`${g.enemies.length} ${g.enemies.length===1?'enemy':'enemies'}`;
     const kills=document.querySelector('#kill-count'); if(kills) kills.textContent=g.teamKills;
     const damage=document.querySelector('#team-damage'); if(damage) damage.textContent=Math.round(g.teamDamage||0);
@@ -1131,7 +1158,7 @@
       const abilityDescription=document.querySelector('#ability-description'); if(abilityDescription) abilityDescription.textContent=abilityProfile.abilityDescription||'';
       const abilityCooldown=document.querySelector('#ability-cooldown'); if(abilityCooldown) abilityCooldown.textContent=`${(10*(self.buff?.cooldown||1)).toFixed(1).replace(/\.0$/,'')}s`;
       const chip=document.querySelector('#ability-chip');
-      if(chip){const left=Math.ceil(self.abilityCooldown);chip.textContent=left>0?`${left}s · ${abilityName}`:`E · ${abilityName}`;chip.classList.toggle('ready',left<=0&&self.alive);chip.disabled=left>0||!self.alive;}
+      if(chip){const left=Math.ceil(self.abilityCooldown);chip.textContent=left>0?`${left}s · ${abilityName}`:`E · ${abilityName}`;chip.classList.toggle('ready',left<=0&&self.alive&&!g.paused);chip.disabled=left>0||!self.alive||g.paused;}
     }
     const heroHud=document.querySelector('#hero-hud');
     const heroHpTrack=document.querySelector('#hero-hp-track');
@@ -1156,18 +1183,27 @@
     const node=document.querySelector('#game-overlay');
     if(!node||!currentRoom?.game) return;
     const g=currentRoom.game; const self=getSelf();
-    const stateKey=`${g.phase}:${g.wave}:${Boolean(self?.upgradePicked)}:${g.result||''}`;
+    const phaseDisplayTimer=g.phase==='upgrade'?Math.ceil(g.phaseTimer||0):g.phase==='intro'?(g.wave===1&&(g.phaseTimer||0)>1.6?'title':'wave'):'';
+    const stateKey=`${g.phase}:${g.wave}:${Boolean(self?.upgradePicked)}:${phaseDisplayTimer}:${g.result||''}`;
     if(stateKey===overlayStateKey)return;
     overlayStateKey=stateKey;
-    if(g.phase==='upgrade') {
+    node.classList.toggle('wave-intro-overlay',g.phase==='intro');
+    if(g.phase==='intro') {
+      node.hidden=false;
+      const romans=['I','II','III','IV','V','VI','VII','VIII','IX','X'];
+      const showTitle=g.wave===1&&(g.phaseTimer||0)>1.6;
+      node.innerHTML=`<div class="wave-intro-copy">${showTitle?'<div class="wave-intro-title">SURVIVE THE SLIME</div>':`<div class="wave-intro-number">Wave ${romans[Math.max(0,Math.min(9,(g.wave||1)-1))]}</div>`}</div>`;
+    } else if(g.phase==='upgrade') {
       node.hidden=false;
       if(self?.upgradePicked) {
-        const waitCopy=currentRoom.mode==='solo'?'Your upgrade is ready. The next wave begins shortly.':'Waiting for the other champions. The next wave begins when everyone is ready.';
+        const waitCopy=`Waiting for the other players. New wave begins in ${Math.max(0,Math.ceil(g.phaseTimer||0))}s.`;
         const reviveCopy=currentRoom.mode==='solo'?'A solo run ends when your champion falls.':'Downed allies return at the center with some health.';
         node.innerHTML=`<div class="overlay-card"><div class="eyebrow">Wave ${g.wave} cleared</div><h2>Upgrade chosen</h2><p class="muted">${waitCopy}</p><div class="small muted">${reviveCopy}</div></div>`;
       } else {
-        const upgradeCopy=currentRoom.mode==='solo'?'Choose one lasting bonus for your run.':'Each champion chooses a lasting bonus before the next wave.';
-        node.innerHTML=`<div class="overlay-card"><div class="eyebrow">Wave ${g.wave} cleared</div><h2>Choose an upgrade</h2><p class="muted small">${upgradeCopy}</p><div class="upgrade-grid">${UPGRADES.map(u=>`<button class="upgrade-card" data-upgrade="${u.id}"><div class="upgrade-icon">${u.icon}</div><strong>${u.name}</strong><span>${u.text}</span></button>`).join('')}</div></div>`;
+        const multiplayer=currentRoom.mode==='coop';
+        const timerCopy=multiplayer?`Choose before the timer ends: ${Math.max(0,Math.ceil(g.phaseTimer||0))}s`:'The run stays paused until you choose.';
+        const upgradeCopy=`Choose one lasting bonus for your run. ${timerCopy}`;
+        node.innerHTML=`<div class="overlay-card"><div class="eyebrow">Wave ${g.wave} cleared</div><h2>Choose an upgrade</h2><p class="muted small">${upgradeCopy}</p><div class="upgrade-grid">${UPGRADES.map(u=>`<button class="upgrade-card" data-upgrade="${u.id}"><div class="upgrade-icon">${u.icon}</div><strong>${u.name}</strong><span>${u.text}</span></button>`).join('')}</div><button class="btn quiet reject-upgrades" data-upgrade="skip">Reject all choices</button></div>`;
         node.querySelectorAll('[data-upgrade]').forEach(button=>button.addEventListener('click',async()=>{await act('upgrade',button.dataset.upgrade);sound(520,.1,'triangle');}));
       }
     } else if(g.phase==='won'||g.phase==='lost') {
@@ -1179,9 +1215,10 @@
       const individualScore=Math.round(players.find(p=>p.id===playerId)?.score||0);
       const survivalCopy=solo?'You survived '+(g.completedWaves||0)+' waves.':'Your party survived '+(g.completedWaves||0)+' waves.';
       const runLabel=solo?(g.phase==='won'?'Solo · Victory':'Solo · Run Lost'):`Party run · ${g.phase==='won'?'victory':'Run Lost'}`;
+      const runTime=formatRunTime(g.elapsedTime);
       const resultStats=solo
-        ? `<div class="results-score"><div class="result-box"><strong>${kills}</strong><span>Slimes defeated</span></div><div class="result-box"><strong>${Math.round(g.teamDamage||0)}</strong><span>Damage dealt</span></div><div class="result-box"><strong>${score}</strong><span>Score</span></div></div>`
-        : `<div class="results-score party-results"><div class="result-box"><strong>${kills}</strong><span>Slimes defeated</span></div><div class="result-box"><strong>${Math.round(g.teamDamage||0)}</strong><span>Damage dealt</span></div><div class="result-box"><strong>${individualScore}</strong><span>Individual Score</span></div><div class="result-box"><strong>${score}</strong><span>Party Score</span></div></div>`;
+        ? `<div class="results-score solo-results"><div class="result-box"><strong>${runTime}</strong><span>Time</span></div><div class="result-box"><strong>${kills}</strong><span>Slimes defeated</span></div><div class="result-box"><strong>${Math.round(g.teamDamage||0)}</strong><span>Damage dealt</span></div><div class="result-box"><strong>${score}</strong><span>Score</span></div></div>`
+        : `<div class="results-score party-results"><div class="result-box"><strong>${runTime}</strong><span>Time</span></div><div class="result-box"><strong>${kills}</strong><span>Slimes defeated</span></div><div class="result-box"><strong>${Math.round(g.teamDamage||0)}</strong><span>Damage dealt</span></div><div class="result-box"><strong>${individualScore}</strong><span>Individual Score</span></div><div class="result-box"><strong>${score}</strong><span>Party Score</span></div></div>`;
       node.innerHTML=`<div class="overlay-card"><div class="eyebrow">${runLabel}</div><h2>${g.phase==='won'?'The King Slime is defeated':'The slimes claim the arena'}</h2><p class="muted">${g.phase==='won'?'The coliseum is yours. A clean ten-wave clear.':survivalCopy}</p>${resultStats}<button class="btn" data-action="again">Back to the menu</button></div>`;
       node.querySelector('[data-action="again"]').addEventListener('click',leaveRoom);
     } else node.hidden=true;
@@ -1209,8 +1246,10 @@
       const now=performance.now();
       const deltaSeconds=Math.min(.05,Math.max(0,(now-lastMovementUpdateAt)/1000));
       lastMovementUpdateAt=now;
-      if(currentScreen!=='game'||currentRoom?.status!=='playing') {
+      if(currentScreen!=='game'||currentRoom?.status!=='playing'||currentRoom?.game?.paused) {
         smoothedMoveVector={x:0,y:0};
+        moveVector={x:0,y:0};
+        keys.clear();
         return;
       }
       let x=moveVector.x,y=moveVector.y;

@@ -117,10 +117,10 @@ function addPlayer(room, id, name, hero) {
 }
 function newGame() {
   return {
-    phase: 'wave', wave: 1, waveElapsed: 0, waveDuration: 20, spawnTimer: 0,
+    phase: 'intro', wave: 1, waveElapsed: 0, waveDuration: 20, spawnTimer: 0,
     enemies: [], projectiles: [], effects: [], spawnIndex: 0, bossSpawned: false,
-    nextId: 1, startedAt: Date.now(), completedWaves: 0, teamKills: 0, teamDamage: 0, waveBonus: 0,
-    phaseTimer: 0, roomMode: 'coop'
+    nextId: 1, startedAt: Date.now(), elapsedTime: 0, completedWaves: 0, teamKills: 0, teamDamage: 0, waveBonus: 0,
+    phaseTimer: 0, roomMode: 'coop', paused: false
   };
 }
 function publicRoom(room, viewerId) {
@@ -141,6 +141,7 @@ function publicRoom(room, viewerId) {
       phase: room.game.phase, wave: room.game.wave, waveElapsed: room.game.waveElapsed,
       waveDuration: room.game.waveDuration, enemies: room.game.enemies,
       projectiles: room.game.projectiles, effects: room.game.effects,
+      elapsedTime: room.game.elapsedTime, phaseTimer: room.game.phaseTimer, paused: room.game.paused,
       completedWaves: room.game.completedWaves, teamKills: room.game.teamKills,
       teamDamage: room.game.teamDamage, waveBonus: room.game.waveBonus, remaining: room.game.enemies.length,
       result: room.game.result || null
@@ -262,7 +263,8 @@ function assignRandomHeroes(room) {
 function beginWave(room, wave) {
   const game = room.game;
   game.wave = wave;
-  game.phase = 'wave';
+  game.phase = 'intro';
+  game.phaseTimer = 3.2;
   game.waveElapsed = 0;
   game.waveDuration = wave === 10 ? 28 : 20;
   game.spawnTimer = wave === 10 ? 1 : 0.8;
@@ -270,12 +272,13 @@ function beginWave(room, wave) {
   game.enemies = [];
   for (const p of room.players) {
     p.upgradePicked = false;
+    p.move = { x: 0, y: 0 };
     if (p.alive === false && room.mode === 'coop') {
       p.alive = true;
       p.hp = Math.max(1, Math.ceil(heroStats(p).maxHp * 0.55));
       p.x = WORLD.width / 2;
       p.y = WORLD.height / 2;
-      p.invulnerableUntil = Date.now() + 1800;
+      p.invulnerableUntil = Date.now() + (game.phaseTimer + 1.8) * 1000;
     }
   }
   newEffect(game, WORLD.width / 2, WORLD.height / 2, '#ffe2a1', 190, 'ring', 0.8);
@@ -289,17 +292,29 @@ function endRun(room, result) {
 }
 function updateGame(room, dt, now) {
   const game = room.game;
-  if (!game || room.status !== 'playing') return;
+  if (!game || room.status !== 'playing' || game.paused) return;
+  for (const effect of game.effects) effect.life -= dt;
+  game.effects = game.effects.filter(effect => effect.life > 0);
+  if (game.phase === 'intro') {
+    game.phaseTimer = Math.max(0, game.phaseTimer - dt);
+    if (game.phaseTimer <= 0) game.phase = 'wave';
+    return;
+  }
   if (game.phase === 'upgrade') {
-    game.phaseTimer -= dt;
-    const active = room.players.filter(p => isOnline(p, now));
-    if (active.length && active.every(p => p.upgradePicked) || game.phaseTimer <= 0) {
+    if (room.mode === 'coop') game.phaseTimer = Math.max(0, game.phaseTimer - dt);
+    const everyoneChosen = room.players.length > 0 && room.players.every(p => p.upgradePicked);
+    const choiceExpired = room.mode === 'coop' && game.phaseTimer <= 0;
+    if (everyoneChosen || choiceExpired) {
+      if (choiceExpired) {
+        for (const player of room.players) player.upgradePicked = true;
+      }
       if (game.wave >= 10) endRun(room, 'won');
       else beginWave(room, game.wave + 1);
     }
     return;
   }
   if (game.phase !== 'wave') return;
+  game.elapsedTime += dt;
   game.waveElapsed += dt;
   game.spawnTimer -= dt;
   if (game.spawnTimer <= 0 && game.waveElapsed < game.waveDuration && game.enemies.length < 36) {
@@ -313,9 +328,6 @@ function updateGame(room, dt, now) {
     spawnEnemy(room, 'king');
     game.bossSpawned = true;
   }
-
-  for (const effect of game.effects) effect.life -= dt;
-  game.effects = game.effects.filter(effect => effect.life > 0);
 
   for (const player of room.players) {
     if (!isOnline(player, now)) player.move = { x: 0, y: 0 };
@@ -541,7 +553,7 @@ function updateGame(room, dt, now) {
     game.waveBonus += 200;
     if (game.wave === 10) { endRun(room, 'won'); return; }
     game.phase = 'upgrade';
-    game.phaseTimer = 24;
+    game.phaseTimer = room.mode === 'coop' ? 20 : null;
     for (const p of room.players) p.upgradePicked = false;
     newEffect(game, WORLD.width / 2, WORLD.height / 2, '#ffe8a2', 220, 'ring', 0.8);
   }
@@ -550,7 +562,7 @@ function updateGame(room, dt, now) {
 function useAbility(room, player) {
   const game = room.game;
   const now = Date.now();
-  if (!game || game.phase !== 'wave' || !player.alive || player.abilityCooldown > 0) return;
+  if (!game || game.paused || game.phase !== 'wave' || !player.alive || player.abilityCooldown > 0) return;
   const stats = heroStats(player);
   player.abilityCooldown = 10 * player.buff.cooldown;
   if (player.hero === 'Ravela') {
@@ -702,7 +714,7 @@ const server = http.createServer(async (req, res) => {
         const now = Date.now();
         player.lastSeen = now;
         room.lastActivity = now;
-        if (room.status === 'playing' && room.game?.phase === 'wave' && now - player.lastInput >= 20) {
+        if (room.status === 'playing' && !room.game?.paused && room.game?.phase === 'wave' && now - player.lastInput >= 20) {
           let x = clamp(Number(body.x) || 0, -1, 1);
           let y = clamp(Number(body.y) || 0, -1, 1);
           const len = Math.hypot(x, y);
@@ -749,7 +761,13 @@ const server = http.createServer(async (req, res) => {
           room.game = newGame();
           room.game.roomMode = room.mode;
           beginWave(room, 1);
-        } else if (action === 'move' && room.status === 'playing' && room.game?.phase === 'wave') {
+        } else if (action === 'pause') {
+          if (room.mode !== 'solo' || room.status !== 'playing' || !['intro', 'wave'].includes(room.game?.phase)) {
+            return send(res, 409, { error: 'Pause is available during solo gameplay.' });
+          }
+          room.game.paused = Boolean(body.value);
+          if (room.game.paused) player.move = { x: 0, y: 0 };
+        } else if (action === 'move' && room.status === 'playing' && !room.game?.paused && room.game?.phase === 'wave') {
           const now = Date.now();
           if (now - player.lastInput > 20) {
             let x = clamp(Number(body.x) || 0, -1, 1);
@@ -769,8 +787,10 @@ const server = http.createServer(async (req, res) => {
             swift: () => { player.buff.speed *= 1.13; },
             focus: () => { player.buff.cooldown *= 0.86; }
           };
-          if (!upgrades[body.value]) return send(res, 400, { error: 'Unknown upgrade.' });
-          upgrades[body.value]();
+          if (body.value !== 'skip') {
+            if (!upgrades[body.value]) return send(res, 400, { error: 'Unknown upgrade.' });
+            upgrades[body.value]();
+          }
           player.upgradePicked = true;
         } else if (action === 'leave') {
           room.players = room.players.filter(p => p.id !== player.id);
