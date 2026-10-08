@@ -1,0 +1,12 @@
+{
+  "name": "slime-slayer-demo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A small server-authoritative co-op roguelike demo",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

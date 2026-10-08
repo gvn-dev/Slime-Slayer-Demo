@@ -1,0 +1,613 @@
+const http = require('node:http');
+const fs = require('node:fs');
+const path = require('node:path');
+const { randomUUID } = require('node:crypto');
+
+const PORT = Number(process.env.PORT || 3000);
+const ROOT = __dirname;
+const PUBLIC = path.join(ROOT, 'public');
+const rooms = new Map();
+const WORLD = { width: 1200, height: 760 };
+const ROOM_TTL = 30 * 60 * 1000;
+const PLAYER_OFFLINE_MS = 9000;
+const CHARACTER_ART = {
+  Ravela: 'Ravela Art.png',
+  Fjord: 'Fjord Art.png',
+  Aram: 'Aram Art.png',
+  Gavrilta: 'Gavrilla Art.png'
+};
+
+const HEROES = {
+  Ravela: { hp: 20, speed: 175, damage: 24, range: 340, interval: 0.62, kind: 'arrow', color: '#e4d7f5', ability: 'Mark of Death' },
+  Fjord: { hp: 85, speed: 112, damage: 31, range: 94, interval: 1.05, kind: 'cleave', color: '#ed9b4b', ability: 'Fire Breath' },
+  Aram: { hp: 50, speed: 145, damage: 22, range: 96, interval: 0.62, kind: 'sword', color: '#a6c3a3', ability: 'Riposte' },
+  Gavrilta: { hp: 30, speed: 130, damage: 15, range: 300, interval: 1.12, kind: 'orb', color: '#82db77', ability: 'Wild Growth' }
+};
+
+const ENEMY = {
+  blue:   { name: 'Blue Slime',   hp: 32, speed: 64, damage: 6,  size: 17, color: '#4ca4ee', points: 10 },
+  green:  { name: 'Green Slime',  hp: 48, speed: 38, damage: 5,  size: 19, color: '#7fd05e', points: 14 },
+  red:    { name: 'Red Slime',    hp: 76, speed: 30, damage: 12, size: 22, color: '#f06c4c', points: 20 },
+  yellow: { name: 'Yellow Slime', hp: 42, speed: 76, damage: 10, size: 17, color: '#f5d452', points: 24 },
+  black:  { name: 'Black Slime',  hp: 124, speed: 34, damage: 12, size: 25, color: '#9683bb', points: 32 },
+  king:   { name: 'King Slime',   hp: 980, speed: 22, damage: 21, size: 48, color: '#e04c63', points: 500 }
+};
+
+const WAVE_TYPES = {
+  1: ['blue'],
+  2: ['blue', 'green'],
+  3: ['green'],
+  4: ['blue', 'green', 'red'],
+  5: ['red'],
+  6: ['green', 'red', 'yellow'],
+  7: ['yellow'],
+  8: ['red', 'yellow', 'black'],
+  9: ['black'],
+  10: ['blue', 'green', 'red', 'yellow', 'black']
+};
+
+function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+function cleanName(value) {
+  const name = String(value || '').trim().replace(/[<>]/g, '').slice(0, 18);
+  return name || 'Slime Slayer';
+}
+function newId() { return randomUUID(); }
+function makeCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code;
+  do { code = Array.from({ length: 5 }, () => chars[Math.floor(Math.random() * chars.length)]).join(''); }
+  while (rooms.has(code));
+  return code;
+}
+function makePlayer(id, name, hero) {
+  const stats = HEROES[hero] || HEROES.Ravela;
+  return {
+    id, name: cleanName(name), hero: HEROES[hero] ? hero : 'Ravela', ready: false,
+    x: WORLD.width / 2, y: WORLD.height / 2, hp: stats.hp, maxHp: stats.hp,
+    alive: true, score: 0, damage: 0, kills: 0, move: { x: 0, y: 0 }, facing: { x: 1, y: 0 },
+    attackCooldown: 0, abilityCooldown: 0, stunnedUntil: 0, rootedUntil: 0, markedUntil: 0,
+    invulnerableUntil: 0, buff: { damage: 1, speed: 1, maxHp: 1, cooldown: 1 },
+    upgradePicked: false, lastSeen: Date.now(), lastInput: 0
+  };
+}
+function heroStats(player) {
+  const base = HEROES[player.hero] || HEROES.Ravela;
+  return {
+    ...base,
+    maxHp: Math.round(base.hp * player.buff.maxHp),
+    speed: base.speed * player.buff.speed,
+    damage: base.damage * player.buff.damage,
+    interval: base.interval * player.buff.cooldown
+  };
+}
+function getRoom(code) { return rooms.get(String(code || '').toUpperCase()); }
+function isOnline(player, now = Date.now()) { return now - player.lastSeen < PLAYER_OFFLINE_MS; }
+function moveHost(room) {
+  if (room.players.some(p => p.id === room.hostId && isOnline(p))) return;
+  const next = room.players.filter(p => isOnline(p)).sort((a, b) => a.createdAt - b.createdAt)[0];
+  if (next) room.hostId = next.id;
+}
+function addPlayer(room, id, name, hero) {
+  const player = makePlayer(id, name, hero);
+  player.createdAt = Date.now();
+  room.players.push(player);
+  room.lastActivity = Date.now();
+  return player;
+}
+function newGame() {
+  return {
+    phase: 'wave', wave: 1, waveElapsed: 0, waveDuration: 20, spawnTimer: 0,
+    enemies: [], projectiles: [], effects: [], spawnIndex: 0, bossSpawned: false,
+    nextId: 1, startedAt: Date.now(), completedWaves: 0, teamKills: 0, teamDamage: 0,
+    phaseTimer: 0, roomMode: 'coop'
+  };
+}
+function publicRoom(room, viewerId) {
+  const now = Date.now();
+  return {
+    code: room.code, mode: room.mode, status: room.status, hostId: room.hostId,
+    isHost: room.hostId === viewerId,
+    players: room.players.map(p => ({
+      id: p.id, name: p.name, hero: p.hero, ready: p.ready, online: isOnline(p, now),
+      x: p.x, y: p.y, hp: p.hp, maxHp: p.maxHp, alive: p.alive, score: p.score,
+      damage: p.damage, kills: p.kills, abilityCooldown: p.abilityCooldown,
+      abilityName: HEROES[p.hero]?.ability, upgradePicked: p.upgradePicked,
+      buff: p.buff, marked: p.markedUntil > now
+    })),
+    game: room.game ? {
+      phase: room.game.phase, wave: room.game.wave, waveElapsed: room.game.waveElapsed,
+      waveDuration: room.game.waveDuration, enemies: room.game.enemies,
+      projectiles: room.game.projectiles, effects: room.game.effects,
+      completedWaves: room.game.completedWaves, teamKills: room.game.teamKills,
+      teamDamage: room.game.teamDamage, remaining: room.game.enemies.length,
+      result: room.game.result || null
+    } : null
+  };
+}
+function send(res, status, payload) {
+  const body = JSON.stringify(payload);
+  res.writeHead(status, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Content-Length': Buffer.byteLength(body),
+    'Cache-Control': 'no-store',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
+  });
+  res.end(body);
+}
+function readJson(req) {
+  return new Promise((resolve, reject) => {
+    let raw = '';
+    req.on('data', chunk => {
+      raw += chunk;
+      if (raw.length > 32_000) { reject(new Error('Request too large')); req.destroy(); }
+    });
+    req.on('end', () => {
+      try { resolve(raw ? JSON.parse(raw) : {}); }
+      catch { reject(new Error('Invalid JSON')); }
+    });
+  });
+}
+function newEffect(game, x, y, color, radius, kind = 'ring', duration = 0.42) {
+  game.effects.push({ id: game.nextId++, x, y, color, radius, kind, life: duration, maxLife: duration });
+}
+function spawnEnemy(room, type) {
+  const game = room.game;
+  const spec = ENEMY[type];
+  if (!game || !spec) return;
+  const side = Math.floor(Math.random() * 4);
+  const x = side === 0 ? 20 : side === 1 ? WORLD.width - 20 : 100 + Math.random() * (WORLD.width - 200);
+  const y = side === 2 ? 20 : side === 3 ? WORLD.height - 20 : 90 + Math.random() * (WORLD.height - 180);
+  const scale = type === 'king' ? 1 : 1 + (game.wave - 1) * 0.13;
+  game.enemies.push({
+    id: game.nextId++, type, name: spec.name, x, y, hp: Math.ceil(spec.hp * scale),
+    maxHp: Math.ceil(spec.hp * scale), speed: spec.speed * (1 + (game.wave - 1) * 0.025),
+    damage: spec.damage * (1 + (game.wave - 1) * 0.08), size: spec.size,
+    color: spec.color, points: spec.points, cooldown: 0.7 + Math.random() * 1.5,
+    stunnedUntil: 0, rootedUntil: 0, slowUntil: 0, markedUntil: 0,
+    dotUntil: 0, dotNext: 0, dotDamage: 0, dotBy: null, attackType: 'contact'
+  });
+}
+function damagePlayer(player, amount, now) {
+  if (!player.alive || player.invulnerableUntil > now) return false;
+  const stats = heroStats(player);
+  let damage = amount * (player.hero === 'Fjord' ? 0.8 : 1);
+  if (player.markedUntil > now) damage *= 1.25;
+  player.hp = Math.max(0, player.hp - Math.max(1, Math.round(damage)));
+  if (player.hp <= 0) {
+    player.alive = false;
+    player.move = { x: 0, y: 0 };
+    return true;
+  }
+  return false;
+}
+function damageEnemy(room, enemy, amount, playerId, now) {
+  const game = room.game;
+  if (!game.enemies.includes(enemy)) return;
+  const hit = Math.max(1, amount * (enemy.markedUntil > now ? 1.25 : 1));
+  enemy.hp -= hit;
+  game.teamDamage += hit;
+  const player = room.players.find(p => p.id === playerId);
+  if (player) { player.damage += hit; player.score += hit; }
+  if (enemy.hp > 0) return;
+  game.enemies = game.enemies.filter(e => e !== enemy);
+  game.teamKills++;
+  if (player) { player.kills++; player.score += enemy.points; }
+  newEffect(game, enemy.x, enemy.y, enemy.color, enemy.size * 1.9, 'pop', 0.32);
+  if (enemy.type === 'red') {
+    newEffect(game, enemy.x, enemy.y, '#ff7654', 105, 'ring', 0.5);
+    for (const target of room.players) {
+      if (target.alive && Math.hypot(target.x - enemy.x, target.y - enemy.y) < 105) damagePlayer(target, 16, now);
+    }
+    for (const other of [...game.enemies]) {
+      if (other !== enemy && Math.hypot(other.x - enemy.x, other.y - enemy.y) < 105) damageEnemy(room, other, 40, playerId, now);
+    }
+  }
+}
+function nearestEnemy(game, x, y, range = Infinity) {
+  let best = null;
+  let bestDistance = range;
+  for (const enemy of game.enemies) {
+    const d = Math.hypot(enemy.x - x, enemy.y - y);
+    if (d < bestDistance) { best = enemy; bestDistance = d; }
+  }
+  return best;
+}
+function canStart(room) {
+  const onlinePlayers = room.players.filter(p => isOnline(p));
+  return onlinePlayers.length > 0 && onlinePlayers.every(p => p.ready);
+}
+function beginWave(room, wave) {
+  const game = room.game;
+  game.wave = wave;
+  game.phase = 'wave';
+  game.waveElapsed = 0;
+  game.waveDuration = wave === 10 ? 28 : 20;
+  game.spawnTimer = wave === 10 ? 1 : 0.8;
+  game.bossSpawned = false;
+  game.enemies = [];
+  for (const p of room.players) {
+    p.upgradePicked = false;
+    if (p.alive === false && room.mode === 'coop') {
+      p.alive = true;
+      p.hp = Math.max(1, Math.ceil(heroStats(p).maxHp * 0.55));
+      p.x = WORLD.width / 2;
+      p.y = WORLD.height / 2;
+      p.invulnerableUntil = Date.now() + 1800;
+    }
+  }
+  newEffect(game, WORLD.width / 2, WORLD.height / 2, '#ffe2a1', 190, 'ring', 0.8);
+}
+function endRun(room, result) {
+  if (!room.game) return;
+  room.game.phase = result;
+  room.game.result = result;
+  room.status = 'finished';
+  for (const p of room.players) p.move = { x: 0, y: 0 };
+}
+function updateGame(room, dt, now) {
+  const game = room.game;
+  if (!game || room.status !== 'playing') return;
+  if (game.phase === 'upgrade') {
+    game.phaseTimer -= dt;
+    const active = room.players.filter(p => isOnline(p, now));
+    if (active.length && active.every(p => p.upgradePicked) || game.phaseTimer <= 0) {
+      if (game.wave >= 10) endRun(room, 'won');
+      else beginWave(room, game.wave + 1);
+    }
+    return;
+  }
+  if (game.phase !== 'wave') return;
+  game.waveElapsed += dt;
+  game.spawnTimer -= dt;
+  if (game.spawnTimer <= 0 && game.waveElapsed < game.waveDuration && game.enemies.length < 36) {
+    const types = WAVE_TYPES[game.wave] || ['blue'];
+    const type = types[Math.floor(Math.random() * types.length)];
+    spawnEnemy(room, type);
+    game.spawnIndex++;
+    game.spawnTimer = Math.max(0.52, 1.75 - game.wave * 0.09) * (0.8 + Math.random() * 0.4);
+  }
+  if (game.wave === 10 && !game.bossSpawned && game.waveElapsed > 2) {
+    spawnEnemy(room, 'king');
+    game.bossSpawned = true;
+  }
+
+  for (const effect of game.effects) effect.life -= dt;
+  game.effects = game.effects.filter(effect => effect.life > 0);
+
+  for (const player of room.players) {
+    if (!isOnline(player, now)) player.move = { x: 0, y: 0 };
+    if (!player.alive) continue;
+    const stats = heroStats(player);
+    player.maxHp = stats.maxHp;
+    player.hp = Math.min(player.maxHp, player.hp + dt * 0.05);
+    player.attackCooldown = Math.max(0, player.attackCooldown - dt);
+    player.abilityCooldown = Math.max(0, player.abilityCooldown - dt);
+    const move = now < player.rootedUntil || now < player.stunnedUntil ? { x: 0, y: 0 } : player.move;
+    player.x = clamp(player.x + move.x * stats.speed * dt, 28, WORLD.width - 28);
+    player.y = clamp(player.y + move.y * stats.speed * dt, 28, WORLD.height - 28);
+    if (player.attackCooldown <= 0) {
+      const target = nearestEnemy(game, player.x, player.y, stats.range);
+      if (target) {
+        player.attackCooldown = stats.interval;
+        if (stats.kind === 'cleave') {
+          newEffect(game, player.x, player.y, '#f6a34d', 96, 'slash', 0.3);
+          for (const enemy of [...game.enemies]) {
+            if (Math.hypot(enemy.x - player.x, enemy.y - player.y) <= 96) damageEnemy(room, enemy, stats.damage, player.id, now);
+          }
+        } else if (stats.kind === 'sword') {
+          newEffect(game, (player.x + target.x) / 2, (player.y + target.y) / 2, '#e8e7cc', 54, 'slash', 0.23);
+          damageEnemy(room, target, stats.damage, player.id, now);
+        } else {
+          game.projectiles.push({
+            id: game.nextId++, type: 'hero', from: player.id, target: target.id,
+            x: player.x, y: player.y, speed: stats.kind === 'arrow' ? 560 : 390,
+            damage: stats.damage, color: stats.kind === 'arrow' ? '#f2e8ff' : '#8ee677',
+            radius: stats.kind === 'arrow' ? 6 : 9, poison: stats.kind === 'orb', mark: false
+          });
+        }
+        if (player.hero === 'Aram' && Math.random() < 0.1) target.stunnedUntil = now + 700;
+      }
+    }
+  }
+
+  for (const enemy of [...game.enemies]) {
+    if (enemy.stunnedUntil > now) continue;
+    if (enemy.dotUntil > now && enemy.dotNext <= now) {
+      enemy.dotNext = now + 500;
+      damageEnemy(room, enemy, enemy.dotDamage, enemy.dotBy, now);
+      if (!game.enemies.includes(enemy)) continue;
+    }
+    let target = null;
+    let targetDistance = Infinity;
+    for (const p of room.players) {
+      if (!p.alive) continue;
+      const d = Math.hypot(p.x - enemy.x, p.y - enemy.y);
+      if (d < targetDistance) { target = p; targetDistance = d; }
+    }
+    if (!target) continue;
+    const spec = ENEMY[enemy.type];
+    const ranged = ['green', 'yellow', 'black'].includes(enemy.type);
+    const preferredRange = enemy.type === 'yellow' ? 300 : enemy.type === 'black' ? 270 : 170;
+    const shouldShoot = ranged && targetDistance < preferredRange && targetDistance > 92;
+    const shouldApproach = !ranged || (!shouldShoot && targetDistance > enemy.size + 22);
+    if (shouldApproach && enemy.rootedUntil < now && enemy.slowUntil < now) {
+      const dx = target.x - enemy.x;
+      const dy = target.y - enemy.y;
+      const d = Math.max(1, Math.hypot(dx, dy));
+      enemy.x = clamp(enemy.x + dx / d * enemy.speed * dt, 16, WORLD.width - 16);
+      enemy.y = clamp(enemy.y + dy / d * enemy.speed * dt, 16, WORLD.height - 16);
+    }
+    enemy.cooldown -= dt;
+    if (enemy.cooldown > 0) continue;
+    if (ranged && (shouldShoot || targetDistance < 90)) {
+      const mark = enemy.type === 'black';
+      game.projectiles.push({
+        id: game.nextId++, type: 'enemy', from: enemy.id, target: target.id,
+        x: enemy.x, y: enemy.y, tx: target.x, ty: target.y,
+        speed: enemy.type === 'yellow' ? 300 : 210, damage: enemy.damage,
+        color: enemy.color, radius: enemy.type === 'black' ? 12 : 8,
+        slow: enemy.type === 'green', mark
+      });
+      enemy.cooldown = enemy.type === 'yellow' ? 1.7 : enemy.type === 'black' ? 2.4 : 2.8;
+    } else if (!ranged && targetDistance < enemy.size + 30) {
+      if (enemy.type === 'red') {
+        // Red slimes rush the party and burst in a small flame blast.
+        damageEnemy(room, enemy, enemy.hp + 1, null, now);
+      } else if (target.hero === 'Aram' && Math.random() < 0.1) {
+        enemy.stunnedUntil = now + 3000;
+        newEffect(game, target.x, target.y, '#d9f2e2', 72, 'ring', 0.3);
+      } else {
+        const downed = damagePlayer(target, enemy.damage, now);
+        if (enemy.type === 'green') target.rootedUntil = now + 700;
+        if (downed && room.mode === 'solo') endRun(room, 'lost');
+      }
+      enemy.cooldown = enemy.type === 'red' ? 1.25 : 1.05;
+    } else {
+      enemy.cooldown = 0.4;
+    }
+  }
+
+  for (const projectile of [...game.projectiles]) {
+    const target = projectile.type === 'hero'
+      ? game.enemies.find(e => e.id === projectile.target)
+      : room.players.find(p => p.id === projectile.target && p.alive);
+    if (!target) { game.projectiles = game.projectiles.filter(p => p !== projectile); continue; }
+    let dx = (projectile.type === 'hero' ? target.x : projectile.tx) - projectile.x;
+    let dy = (projectile.type === 'hero' ? target.y : projectile.ty) - projectile.y;
+    const dist = Math.max(1, Math.hypot(dx, dy));
+    const step = projectile.speed * dt;
+    if (dist <= step + (target.size || 15)) {
+      if (projectile.type === 'hero') {
+        damageEnemy(room, target, projectile.damage, projectile.from, now);
+        if (projectile.poison && game.enemies.includes(target)) {
+          target.dotUntil = now + 2500;
+          target.dotNext = now + 500;
+          target.dotDamage = 5;
+          target.dotBy = projectile.from;
+          target.rootedUntil = Math.max(target.rootedUntil, now + 1000);
+        }
+        if (projectile.mark && game.enemies.includes(target)) target.markedUntil = now + 3000;
+        const attacker = room.players.find(p => p.id === projectile.from);
+        if (attacker?.hero === 'Ravela' && game.enemies.includes(target) && Math.random() < 0.1) target.markedUntil = now + 3000;
+      } else {
+        const player = target;
+        if (player.hero === 'Aram' && Math.random() < 0.1) {
+          newEffect(game, player.x, player.y, '#d9f2e2', 64, 'ring', 0.35);
+        } else {
+          const downed = damagePlayer(player, projectile.damage, now);
+          if (projectile.mark) player.markedUntil = now + 3500;
+          if (projectile.slow) player.rootedUntil = Math.max(player.rootedUntil, now + 650);
+          if (downed && room.mode === 'solo') endRun(room, 'lost');
+        }
+      }
+      newEffect(game, projectile.x, projectile.y, projectile.color, 26, 'pop', 0.18);
+      game.projectiles = game.projectiles.filter(p => p !== projectile);
+    } else {
+      projectile.x += dx / dist * step;
+      projectile.y += dy / dist * step;
+    }
+  }
+
+  if (room.players.length && room.players.every(p => !p.alive)) {
+    endRun(room, 'lost');
+    return;
+  }
+  if (game.waveElapsed >= game.waveDuration && game.enemies.length === 0) {
+    game.completedWaves = Math.max(game.completedWaves, game.wave);
+    if (game.wave === 10) { endRun(room, 'won'); return; }
+    game.phase = 'upgrade';
+    game.phaseTimer = 24;
+    for (const p of room.players) p.upgradePicked = false;
+    newEffect(game, WORLD.width / 2, WORLD.height / 2, '#ffe8a2', 220, 'ring', 0.8);
+  }
+}
+
+function useAbility(room, player) {
+  const game = room.game;
+  const now = Date.now();
+  if (!game || game.phase !== 'wave' || !player.alive || player.abilityCooldown > 0) return;
+  const stats = heroStats(player);
+  player.abilityCooldown = 10 * player.buff.cooldown;
+  if (player.hero === 'Ravela') {
+    const target = nearestEnemy(game, player.x, player.y, 480);
+    if (target) {
+      damageEnemy(room, target, stats.damage * 4.2, player.id, now);
+      if (game.enemies.includes(target)) target.markedUntil = now + 3500;
+      newEffect(game, target.x, target.y, '#f5e5ff', 82, 'burst', 0.42);
+    }
+  } else if (player.hero === 'Fjord') {
+    const fx = player.facing.x || 1;
+    const fy = player.facing.y || 0;
+    newEffect(game, player.x + fx * 80, player.y + fy * 80, '#ff7847', 230, 'breath', 0.55);
+    for (const enemy of [...game.enemies]) {
+      const dx = enemy.x - player.x;
+      const dy = enemy.y - player.y;
+      const d = Math.hypot(dx, dy);
+      const dot = (dx * fx + dy * fy) / Math.max(1, d);
+      if (d < 245 && dot > 0.2) damageEnemy(room, enemy, stats.damage * 3.1, player.id, now);
+    }
+  } else if (player.hero === 'Aram') {
+    player.invulnerableUntil = now + 1300;
+    newEffect(game, player.x, player.y, '#d9f0da', 145, 'pulse', 0.55);
+    for (const enemy of game.enemies) {
+      if (Math.hypot(enemy.x - player.x, enemy.y - player.y) < 150) enemy.stunnedUntil = now + 2600;
+    }
+  } else {
+    newEffect(game, player.x, player.y, '#85e85f', 175, 'roots', 0.62);
+    for (const enemy of game.enemies) {
+      if (Math.hypot(enemy.x - player.x, enemy.y - player.y) < 175) {
+        enemy.rootedUntil = now + 1700;
+        enemy.dotUntil = now + 2800;
+        enemy.dotNext = now + 350;
+        enemy.dotDamage = 9;
+        enemy.dotBy = player.id;
+      }
+    }
+  }
+}
+
+function serveStatic(req, res, pathname) {
+  let file;
+  if (pathname === '/' || pathname === '/index.html') file = path.join(PUBLIC, 'index.html');
+  else if (pathname === '/app.js') file = path.join(PUBLIC, 'app.js');
+  else if (pathname === '/style.css') file = path.join(PUBLIC, 'style.css');
+  else if (pathname.startsWith('/art/')) {
+    const key = decodeURIComponent(pathname.slice(5));
+    const allowed = Object.values(CHARACTER_ART);
+    if (!allowed.includes(key)) return send(res, 404, { error: 'Not found' });
+    file = path.join(ROOT, key);
+  } else return send(res, 404, { error: 'Not found' });
+  const ext = path.extname(file).toLowerCase();
+  const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png' };
+  fs.readFile(file, (error, data) => {
+    if (error) return send(res, 404, { error: 'Not found' });
+    res.writeHead(200, { 'Content-Type': types[ext] || 'application/octet-stream', 'Cache-Control': ext === '.png' ? 'public, max-age=3600' : 'no-cache' });
+    res.end(data);
+  });
+}
+
+const server = http.createServer(async (req, res) => {
+  if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
+  const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  const parts = url.pathname.split('/').filter(Boolean);
+  try {
+    if (req.method === 'GET' && url.pathname === '/api/health') return send(res, 200, { ok: true, rooms: rooms.size });
+    if (req.method === 'POST' && url.pathname === '/api/rooms') {
+      const body = await readJson(req);
+      const mode = body.mode === 'solo' ? 'solo' : 'coop';
+      const playerId = String(body.playerId || newId()).slice(0, 80);
+      const code = makeCode();
+      const room = { code, mode, status: 'lobby', hostId: playerId, players: [], game: null, lastActivity: Date.now() };
+      rooms.set(code, room);
+      const player = addPlayer(room, playerId, body.name, body.hero);
+      if (mode === 'solo') player.ready = true;
+      return send(res, 201, { room: publicRoom(room, playerId), playerId });
+    }
+    if (parts[0] === 'api' && parts[1] === 'rooms' && parts[2]) {
+      const code = String(parts[2]).toUpperCase();
+      const room = getRoom(code);
+      if (!room) return send(res, 404, { error: 'Room not found. Check the code and try again.' });
+      if (req.method === 'GET' && parts.length === 3) {
+        const playerId = String(url.searchParams.get('playerId') || '');
+        const player = room.players.find(p => p.id === playerId);
+        if (!player) return send(res, 403, { error: 'This player is not in the room.' });
+        player.lastSeen = Date.now();
+        room.lastActivity = Date.now();
+        moveHost(room);
+        return send(res, 200, { room: publicRoom(room, playerId) });
+      }
+      if (req.method === 'POST' && parts[3] === 'join') {
+        const body = await readJson(req);
+        const playerId = String(body.playerId || newId()).slice(0, 80);
+        let player = room.players.find(p => p.id === playerId);
+        if (player) {
+          player.lastSeen = Date.now();
+          player.name = cleanName(body.name || player.name);
+        } else {
+          if (room.status !== 'lobby') return send(res, 409, { error: 'This game has already started.' });
+          room.players = room.players.filter(p => isOnline(p) || p.id === room.hostId);
+          if (room.players.length >= 4) return send(res, 409, { error: 'This room already has four players.' });
+          player = addPlayer(room, playerId, body.name, body.hero);
+          moveHost(room);
+        }
+        return send(res, 200, { room: publicRoom(room, playerId), playerId });
+      }
+      if (req.method === 'POST' && parts[3] === 'action') {
+        const body = await readJson(req);
+        const playerId = String(body.playerId || '');
+        const player = room.players.find(p => p.id === playerId);
+        if (!player) return send(res, 403, { error: 'This player is not in the room.' });
+        player.lastSeen = Date.now();
+        room.lastActivity = Date.now();
+        const action = String(body.action || '');
+        if (action === 'character' && room.status === 'lobby') {
+          if (!HEROES[body.value]) return send(res, 400, { error: 'Unknown hero.' });
+          player.hero = body.value;
+          player.maxHp = HEROES[player.hero].hp;
+          player.hp = player.maxHp;
+          player.ready = false;
+        } else if (action === 'ready' && room.status === 'lobby') {
+          player.ready = Boolean(body.value);
+        } else if (action === 'start' && room.status === 'lobby') {
+          if (room.hostId !== player.id) return send(res, 403, { error: 'Only the host can start the run.' });
+          if (!canStart(room)) return send(res, 409, { error: 'Every online player must be ready first.' });
+          room.status = 'playing';
+          room.game = newGame();
+          room.game.roomMode = room.mode;
+          beginWave(room, 1);
+        } else if (action === 'move' && room.status === 'playing' && room.game?.phase === 'wave') {
+          const now = Date.now();
+          if (now - player.lastInput > 20) {
+            let x = clamp(Number(body.x) || 0, -1, 1);
+            let y = clamp(Number(body.y) || 0, -1, 1);
+            const len = Math.hypot(x, y);
+            if (len > 1) { x /= len; y /= len; }
+            player.move = { x, y };
+            if (len > 0.1) player.facing = { x: x / len, y: y / len };
+            player.lastInput = now;
+          }
+        } else if (action === 'ability') {
+          useAbility(room, player);
+        } else if (action === 'upgrade' && room.status === 'playing' && room.game?.phase === 'upgrade' && !player.upgradePicked) {
+          const upgrades = {
+            power: () => { player.buff.damage *= 1.2; },
+            vigor: () => { player.buff.maxHp *= 1.2; player.maxHp = heroStats(player).maxHp; player.hp = Math.min(player.maxHp, player.hp + Math.ceil(player.maxHp * 0.25)); },
+            swift: () => { player.buff.speed *= 1.13; },
+            focus: () => { player.buff.cooldown *= 0.86; }
+          };
+          if (!upgrades[body.value]) return send(res, 400, { error: 'Unknown upgrade.' });
+          upgrades[body.value]();
+          player.upgradePicked = true;
+          player.score += 100;
+        } else if (action === 'leave') {
+          room.players = room.players.filter(p => p.id !== player.id);
+          moveHost(room);
+          if (!room.players.length) rooms.delete(code);
+          return send(res, 200, { ok: true, left: true });
+        }
+        moveHost(room);
+        return send(res, 200, { room: publicRoom(room, playerId) });
+      }
+      return send(res, 404, { error: 'Not found' });
+    }
+    if (req.method === 'GET') return serveStatic(req, res, url.pathname);
+    return send(res, 404, { error: 'Not found' });
+  } catch (error) {
+    return send(res, 400, { error: error.message || 'Request failed.' });
+  }
+});
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [code, room] of rooms) {
+    if (now - room.lastActivity > ROOM_TTL) { rooms.delete(code); continue; }
+    moveHost(room);
+    updateGame(room, 0.1, now);
+  }
+}, 100);
+
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Slime Slayer demo listening on http://localhost:${PORT}`);
+});
