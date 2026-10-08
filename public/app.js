@@ -17,7 +17,7 @@
   const app = document.querySelector('#app');
   const toastNode = document.querySelector('#toast');
   const MAX_CANVAS_DPR = 1.25;
-  const SNAPSHOT_DELAY_MS = 180;
+  const SNAPSHOT_DELAY_MS = 100;
   const storedPlayer = localStorage.getItem('slime-slayer-player-id');
   const playerId = storedPlayer || (crypto.randomUUID ? crypto.randomUUID() : `p-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   localStorage.setItem('slime-slayer-player-id', playerId);
@@ -270,11 +270,18 @@
   function acceptRoom(room, preserveLobbyHero = false) {
     const previousStatus = currentRoom?.status;
     const previousPhase = currentRoom?.game?.phase;
+    const previousWave = currentRoom?.game?.wave;
     if ((pendingLobbyHeroChoice || preserveLobbyHero) && room.status === 'lobby') {
       const optimisticChoice = pendingLobbyHeroChoice ? pendingLobbyHeroChoice.choice : getSelf()?.hero;
       room = { ...room, players: room.players.map(player => player.id === playerId
         ? { ...player, hero: optimisticChoice, ready: false }
         : player) };
+    }
+    const newWave = room.status === 'playing' && room.game?.phase === 'wave'
+      && (previousStatus !== 'playing' || previousPhase !== 'wave' || previousWave !== room.game.wave);
+    if (newWave) {
+      snapshots = [];
+      lastMinimapRenderAt = 0;
     }
     recordSnapshot(room);
     currentRoom = room;
@@ -533,6 +540,7 @@
     document.querySelector('#ability-chip').addEventListener('click', () => act('ability'));
     document.querySelector('#mobile-ability').addEventListener('click', () => act('ability'));
     setupMobilePad();
+    warmSlimeSprites();
     startDrawing();
     startMovementLoop();
     updateGameUI();
@@ -654,7 +662,11 @@
       const old = oldPlayers?.get(player.id);
       const x = old ? old.x + (player.x - old.x) * alpha : player.x;
       const y = old ? old.y + (player.y - old.y) * alpha : player.y;
-      drawHero(ctx, player, x, y);
+      const visualPlayer = old ? { ...player,
+        hp: old.hp + (player.hp - old.hp) * alpha,
+        alive: alpha < 1 ? old.alive : player.alive
+      } : player;
+      drawHero(ctx, visualPlayer, x, y);
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
@@ -691,6 +703,13 @@
     const sprite = { canvas, size };
     slimeSpriteCache.set(key, sprite);
     return sprite;
+  }
+  function warmSlimeSprites() {
+    const sprites = [
+      ['blue',17,'#4ca4ee'], ['green',19,'#7fd05e'], ['red',22,'#f06c4c'],
+      ['yellow',17,'#f5d452'], ['black',25,'#9683bb'], ['king',48,'#e04c63']
+    ];
+    for (const [type,radius,color] of sprites) slimeSprite(type,radius,color);
   }
   function drawSlime(ctx, e, x = e.x, y = e.y) {
     const r = e.size || 18;
@@ -747,6 +766,10 @@
     if (!currentRoom || currentScreen !== 'game') return;
     const g=currentRoom.game; const self=getSelf();
     if (!g) return;
+    const visualFrame=renderFrame();
+    const visualRoom=visualFrame.alpha<1&&visualFrame.before?.room?visualFrame.before.room:visualFrame.room||currentRoom;
+    const visualPlayers=visualRoom.players||currentRoom.players||[];
+    const visualSelf=visualPlayers.find(player=>player.id===playerId)||self;
     const waveLabel=document.querySelector('#wave-label');
     if(waveLabel) waveLabel.textContent=`Wave ${g.wave} / 10`;
     const total=g.waveDuration||20; const progress=g.phase==='wave'?Math.min(100,g.waveElapsed/total*100):g.phase==='upgrade'?100:100;
@@ -757,7 +780,7 @@
     const kills=document.querySelector('#kill-count'); if(kills) kills.textContent=g.teamKills;
     const score=document.querySelector('#team-score'); if(score) score.textContent=(currentRoom.players||[]).reduce((sum,p)=>sum+p.score,0);
     const status=document.querySelector('#party-status');
-    const statusMarkup=(currentRoom.players||[]).map(p=>`<div class="party-row"><div class="party-dot" style="color:${hero(p.hero).color}">${p.hero[0]}</div><span>${esc(p.name)}${p.id===playerId?' · you':''}</span><strong>${Math.max(0,Math.ceil(p.hp))}</strong><div class="hp-track"><div class="hp-fill" style="width:${p.maxHp?Math.max(0,Math.round(p.hp/p.maxHp*100)):0}%;background:${p.alive?'#79bb70':'#e76850'}"></div></div></div>`).join('');
+    const statusMarkup=visualPlayers.map(p=>`<div class="party-row"><div class="party-dot" style="color:${hero(p.hero).color}">${p.hero[0]}</div><span>${esc(p.name)}${p.id===playerId?' · you':''}</span><strong>${Math.max(0,Math.ceil(p.hp))}</strong><div class="hp-track"><div class="hp-fill" style="width:${p.maxHp?Math.max(0,Math.round(p.hp/p.maxHp*100)):0}%;background:${p.alive?'#79bb70':'#e76850'}"></div></div></div>`).join('');
     if(status && statusMarkup!==lastPartyStatusMarkup) { status.innerHTML=statusMarkup; lastPartyStatusMarkup=statusMarkup; }
     const mini=document.querySelector('#minimap');
     const now=performance.now();
@@ -780,7 +803,7 @@
     }
     const chip=document.querySelector('#ability-chip');
     if(chip&&self){const left=Math.ceil(self.abilityCooldown);chip.textContent=left>0?`${left}s · ${self.abilityName||'Ability'}`:`E · ${self.abilityName||'Ability'}`;chip.classList.toggle('ready',left<=0&&self.alive);}
-    const heroHud=document.querySelector('#hero-hud'); if(heroHud&&self) heroHud.textContent=`${self.hero} · ${Math.max(0,Math.ceil(self.hp))}/${self.maxHp} HP`;
+    const heroHud=document.querySelector('#hero-hud'); if(heroHud&&visualSelf) heroHud.textContent=`${visualSelf.hero} · ${Math.max(0,Math.ceil(visualSelf.hp))}/${visualSelf.maxHp} HP`;
     updateOverlay();
   }
   function updateOverlay() {
@@ -840,7 +863,7 @@
       if(keys.has('ArrowDown')||keys.has('s'))y+=1;
       const length=Math.hypot(x,y);if(length>1){x/=length;y/=length;}
       // Ease changes in heading and speed so keyboard direction changes do not snap.
-      const blend=1-Math.exp(-deltaSeconds/.09);
+      const blend=1-Math.exp(-deltaSeconds/.045);
       smoothedMoveVector.x+=(x-smoothedMoveVector.x)*blend;
       smoothedMoveVector.y+=(y-smoothedMoveVector.y)*blend;
       const sendAt=Date.now();if(sendAt-lastMoveAt<(legacyInputFallback?80:40))return;lastMoveAt=sendAt;

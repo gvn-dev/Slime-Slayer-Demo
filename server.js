@@ -8,6 +8,7 @@ const ROOT = __dirname;
 const PUBLIC = path.join(ROOT, 'public');
 const rooms = new Map();
 const WORLD = { width: 1200, height: 760 };
+const PLAYER_HIT_RADIUS = 12;
 const ROOM_TTL = 30 * 60 * 1000;
 const PLAYER_OFFLINE_MS = 9000;
 const CHARACTER_ART = {
@@ -386,15 +387,37 @@ function updateGame(room, dt, now) {
   }
 
   for (const projectile of [...game.projectiles]) {
-    const target = projectile.type === 'hero'
+    const isHeroProjectile = projectile.type === 'hero';
+    const target = isHeroProjectile
       ? game.enemies.find(e => e.id === projectile.target)
       : room.players.find(p => p.id === projectile.target && p.alive);
     if (!target) { game.projectiles = game.projectiles.filter(p => p !== projectile); continue; }
-    let dx = (projectile.type === 'hero' ? target.x : projectile.tx) - projectile.x;
-    let dy = (projectile.type === 'hero' ? target.y : projectile.ty) - projectile.y;
+    const dx = (isHeroProjectile ? target.x : projectile.tx) - projectile.x;
+    const dy = (isHeroProjectile ? target.y : projectile.ty) - projectile.y;
     const dist = Math.max(1, Math.hypot(dx, dy));
     const step = projectile.speed * dt;
-    if (dist <= step + (target.size || 15)) {
+    const travel = Math.min(step, dist);
+    const moveX = dx / dist * travel;
+    const moveY = dy / dist * travel;
+    const nextX = projectile.x + moveX;
+    const nextY = projectile.y + moveY;
+    let hit = isHeroProjectile && dist <= step + (target.size || 15);
+
+    if (!isHeroProjectile) {
+      // Ranged shots travel toward the launch-time aim point, but only hit if
+      // their visible path overlaps the player's current, tighter body hitbox.
+      const segmentLengthSquared = moveX * moveX + moveY * moveY;
+      const projection = segmentLengthSquared > 0
+        ? clamp(((target.x - projectile.x) * moveX + (target.y - projectile.y) * moveY) / segmentLengthSquared, 0, 1)
+        : 0;
+      const closestX = projectile.x + moveX * projection;
+      const closestY = projectile.y + moveY * projection;
+      const hitRadius = PLAYER_HIT_RADIUS + (projectile.radius || 0);
+      hit = Math.hypot(target.x - closestX, target.y - closestY) <= hitRadius;
+      if (hit) { projectile.x = closestX; projectile.y = closestY; }
+    }
+
+    if (hit) {
       if (projectile.type === 'hero') {
         damageEnemy(room, target, projectile.damage, projectile.from, now);
         if (projectile.poison && game.enemies.includes(target)) {
@@ -420,9 +443,13 @@ function updateGame(room, dt, now) {
       }
       newEffect(game, projectile.x, projectile.y, projectile.color, 26, 'pop', 0.18);
       game.projectiles = game.projectiles.filter(p => p !== projectile);
+    } else if (dist <= step) {
+      // A ranged attack that reaches its aimed point without intersecting its
+      // moving target is a miss; it must not linger there and damage later.
+      game.projectiles = game.projectiles.filter(p => p !== projectile);
     } else {
-      projectile.x += dx / dist * step;
-      projectile.y += dy / dist * step;
+      projectile.x = nextX;
+      projectile.y = nextY;
     }
   }
 
