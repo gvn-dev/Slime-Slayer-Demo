@@ -1098,7 +1098,7 @@
     const count=document.querySelector('#enemy-count'); if(count) count.textContent=`${g.enemies.length} ${g.enemies.length===1?'enemy':'enemies'}`;
     const kills=document.querySelector('#kill-count'); if(kills) kills.textContent=g.teamKills;
     const damage=document.querySelector('#team-damage'); if(damage) damage.textContent=Math.round(g.teamDamage||0);
-    const score=document.querySelector('#team-score'); if(score) score.textContent=Math.round((currentRoom.players||[]).reduce((sum,p)=>sum+p.score,0));
+    const score=document.querySelector('#team-score'); if(score) score.textContent=Math.round((currentRoom.players||[]).reduce((sum,p)=>sum+p.score,0)+(g.waveBonus||0));
     const status=document.querySelector('#party-status');
     const statusMarkup=visualPlayers.map(p=>{
       const profile=hero(p.hero); const stats=profile.stats;
@@ -1174,7 +1174,7 @@
       node.hidden=false;
       const solo=currentRoom.mode==='solo';
       const players=currentRoom.players||[];
-      const score=Math.round(players.reduce((sum,p)=>sum+p.score,0));
+      const score=Math.round(players.reduce((sum,p)=>sum+p.score,0)+(g.waveBonus||0));
       const kills=g.teamKills||0;
       const individualScore=Math.round(players.find(p=>p.id===playerId)?.score||0);
       const survivalCopy=solo?'You survived '+(g.completedWaves||0)+' waves.':'Your party survived '+(g.completedWaves||0)+' waves.';

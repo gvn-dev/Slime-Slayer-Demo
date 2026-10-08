@@ -27,12 +27,12 @@ const HEROES = {
 };
 
 const ENEMY = {
-  blue:   { name: 'Blue Slime',   hp: 32, speed: 64, damage: 6,  size: 17, color: '#4ca4ee', points: 10 },
-  green:  { name: 'Green Slime',  hp: 48, speed: 38, damage: 5,  size: 19, color: '#7fd05e', points: 14 },
-  red:    { name: 'Red Slime',    hp: 76, speed: 30, damage: 12, size: 22, color: '#f06c4c', points: 20 },
-  yellow: { name: 'Yellow Slime', hp: 42, speed: 76, damage: 10, size: 17, color: '#f5d452', points: 24 },
-  black:  { name: 'Black Slime',  hp: 124, speed: 34, damage: 12, size: 25, color: '#9683bb', points: 32 },
-  king:   { name: 'King Slime',   hp: 980, speed: 22, damage: 21, size: 48, color: '#e04c63', points: 500 }
+  blue:   { name: 'Blue Slime',   hp: 32, speed: 64, damage: 6,  size: 17, color: '#4ca4ee', points: 3 },
+  green:  { name: 'Green Slime',  hp: 48, speed: 38, damage: 5,  size: 19, color: '#7fd05e', points: 10 },
+  red:    { name: 'Red Slime',    hp: 76, speed: 30, damage: 12, size: 22, color: '#f06c4c', points: 30 },
+  yellow: { name: 'Yellow Slime', hp: 42, speed: 76, damage: 10, size: 17, color: '#f5d452', points: 100 },
+  black:  { name: 'Black Slime',  hp: 124, speed: 34, damage: 12, size: 25, color: '#9683bb', points: 500 },
+  king:   { name: 'King Slime',   hp: 980, speed: 22, damage: 21, size: 48, color: '#e04c63', points: 2500 }
 };
 
 const WAVE_TYPES = {
@@ -119,7 +119,7 @@ function newGame() {
   return {
     phase: 'wave', wave: 1, waveElapsed: 0, waveDuration: 20, spawnTimer: 0,
     enemies: [], projectiles: [], effects: [], spawnIndex: 0, bossSpawned: false,
-    nextId: 1, startedAt: Date.now(), completedWaves: 0, teamKills: 0, teamDamage: 0,
+    nextId: 1, startedAt: Date.now(), completedWaves: 0, teamKills: 0, teamDamage: 0, waveBonus: 0,
     phaseTimer: 0, roomMode: 'coop'
   };
 }
@@ -142,7 +142,7 @@ function publicRoom(room, viewerId) {
       waveDuration: room.game.waveDuration, enemies: room.game.enemies,
       projectiles: room.game.projectiles, effects: room.game.effects,
       completedWaves: room.game.completedWaves, teamKills: room.game.teamKills,
-      teamDamage: room.game.teamDamage, remaining: room.game.enemies.length,
+      teamDamage: room.game.teamDamage, waveBonus: room.game.waveBonus, remaining: room.game.enemies.length,
       result: room.game.result || null
     } : null
   };
@@ -197,13 +197,16 @@ function spawnEnemy(room, type) {
 }
 function damagePlayer(player, amount, now) {
   if (!player.alive || player.invulnerableUntil > now) return false;
-  const stats = heroStats(player);
   let damage = amount * (player.hero === 'Fjord' ? 0.8 : 1);
   if (player.markedUntil > now) damage *= 1.25;
-  player.hp = Math.max(0, player.hp - Math.max(1, Math.round(damage)));
+  const appliedDamage = Math.max(1, Math.round(damage));
+  const previousHp = player.hp;
+  player.hp = Math.max(0, player.hp - appliedDamage);
+  player.score += Math.round((previousHp - player.hp) * 2);
   if (player.hp <= 0) {
     player.alive = false;
     player.deaths++;
+    player.score -= 500;
     player.move = { x: 0, y: 0 };
     return true;
   }
@@ -535,6 +538,7 @@ function updateGame(room, dt, now) {
   }
   if (game.waveElapsed >= game.waveDuration && game.enemies.length === 0) {
     game.completedWaves = Math.max(game.completedWaves, game.wave);
+    game.waveBonus += 200;
     if (game.wave === 10) { endRun(room, 'won'); return; }
     game.phase = 'upgrade';
     game.phaseTimer = 24;
@@ -768,7 +772,6 @@ const server = http.createServer(async (req, res) => {
           if (!upgrades[body.value]) return send(res, 400, { error: 'Unknown upgrade.' });
           upgrades[body.value]();
           player.upgradePicked = true;
-          player.score += 100;
         } else if (action === 'leave') {
           room.players = room.players.filter(p => p.id !== player.id);
           moveHost(room);
