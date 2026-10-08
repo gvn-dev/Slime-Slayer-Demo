@@ -1,4 +1,4 @@
-# Slime Slayer — Coliseum Run
+# Slime Slayer
 
 A browser-playable prototype for the Slime Slayer co-op roguelike. It uses a small Node.js server and browser-native HTML, CSS, and canvas. There are no third-party runtime dependencies.
 
