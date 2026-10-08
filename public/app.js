@@ -162,12 +162,12 @@
             <h1>SLIME SLAYER</h1>
             <div class="subtitle">Roguelike</div>
           </header>
-          <p class="intro"><span class="intro-lead">Hold the coliseum against a tsunami of slime!</span><span class="intro-support">Choose your champion to brave the tides alone or survive with your fellow adventurers.</span></p>
+          <p class="intro"><span class="intro-lead">Hold the coliseum against a tsunami of slime!</span><span class="intro-support">Choose your champion to brave the tides alone or survive with your fellow adventurers</span></p>
           <div class="mode-select">
             <button class="mode-card" data-action="solo"><span class="mode-symbol">⚔</span><span class="mode-title">Solo</span><span class="mode-caption">Singleplayer</span></button>
             <button class="mode-card" data-action="party"><span class="mode-symbol party-pawns" aria-hidden="true">♟♟♟♟</span><span class="mode-title">Party</span><span class="mode-caption">Multiplayer</span></button>
           </div>
-          <footer class="menu-foot">Up to four players · WASD / arrows / drag to move · E / tap button to use your ability.</footer>
+          <footer class="menu-foot">Up to four players · WASD / arrows / drag to move · E / tap button to use your ability</footer>
         </div>
       </section>`;
     app.querySelector('[data-action="solo"]').addEventListener('click', () => { setHero(null); renderSoloSelect(); });
@@ -180,10 +180,10 @@
     app.innerHTML = `<section class="screen menu-screen sub-screen">${gearButton()}<div class="menu-wrap">
       <button class="back-link" data-action="back">← Back</button>
       <header class="brand compact-brand"><div class="brand-mark">✦</div><h1>PARTY</h1><div class="subtitle">Play together</div></header>
-      <p class="intro">Create a private party with an invite code, open a public party, join by code, or browse groups.</p>
+      <p class="intro">Create a private party with an invite code, open a public party, join by code, or view the server list.</p>
       <div class="mode-select party-choice-grid"><button class="mode-card" data-action="create"><span class="mode-symbol">＋</span><span class="mode-title">Create a party</span><span class="mode-caption">Choose Private or Public</span></button>
       <button class="mode-card" data-action="join"><span class="mode-symbol">⌕</span><span class="mode-title">Join a party</span><span class="mode-caption">Enter a friend's five-character code</span></button></div>
-      <button class="mode-card browse-groups-card" data-action="browse"><span class="mode-symbol">◉</span><span><span class="mode-title">Browse Groups</span><span class="mode-caption">Find public parties or unlock a private one</span></span></button>
+      <button class="mode-card browse-groups-card" data-action="browse"><span class="mode-symbol">◉</span><span><span class="mode-title">Server List</span><span class="mode-caption">Find public parties or unlock a private one</span></span></button>
     </div></section>`;
     app.querySelector('[data-action="back"]').addEventListener('click', renderMenu);
     app.querySelector('[data-action="create"]').addEventListener('click', () => showPartyDialog('create'));
@@ -199,10 +199,10 @@
     modal.id = 'party-dialog';
     modal.innerHTML = `<form class="overlay-card party-dialog" id="party-dialog-form"><div class="eyebrow">${creating ? 'New party' : 'Join a party'}</div>
       <h2>${creating ? 'Name your party' : 'Enter the party code'}</h2>
-      <p class="small muted">${creating ? 'Choose Private for an invite code or Public to appear in Browse Groups.' : 'Ask the party host for the five-character room code.'}</p>
+      <p class="small muted">${creating ? 'Choose Private for an invite code or Public to appear in the server list.' : 'Ask the party host for the five-character room code.'}</p>
       <label class="dialog-label" for="party-dialog-input">${creating ? 'Party name' : 'Party code'}</label>
       <input class="text-input dialog-input ${creating ? '' : 'code-input'}" id="party-dialog-input" maxlength="${creating ? 28 : 5}" placeholder="${creating ? 'The Slime Slayers' : 'ABCDE'}" value="${creating ? '' : esc(roomCode)}" ${creating ? 'required' : 'required autocomplete="off"'}>
-      ${creating ? `<fieldset class="visibility-fieldset"><legend>Who can join?</legend><div class="visibility-options"><label class="visibility-option"><input type="radio" name="party-visibility" value="private" checked><span><strong>Private</strong><small>Show an invite code in your lobby</small></span></label><label class="visibility-option"><input type="radio" name="party-visibility" value="public"><span><strong>Public</strong><small>Appear in Browse Groups without a code</small></span></label></div></fieldset>` : ''}
+      ${creating ? `<fieldset class="visibility-fieldset"><legend>Who can join?</legend><div class="visibility-options"><label class="visibility-option"><input type="radio" name="party-visibility" value="private" checked><span><strong>Private</strong><small>Show an invite code in your lobby</small></span></label><label class="visibility-option"><input type="radio" name="party-visibility" value="public"><span><strong>Public</strong><small>Appear in the server list without a code</small></span></label></div></fieldset>` : ''}
       <div class="dialog-actions"><button class="btn quiet" type="button" data-action="cancel">Cancel</button><button class="btn" type="submit">${creating ? 'Create party' : 'Join party'}</button></div></form>`;
     document.body.append(modal);
     const input = modal.querySelector('input');
@@ -230,7 +230,7 @@
     browseGroups = [];
     app.innerHTML = `<section class="screen browse-screen">${gearButton()}<div class="browse-panel">
       <button class="back-link" data-action="back">← Back</button>
-      <header class="brand compact-brand"><div class="brand-mark">✦</div><h1>BROWSE GROUPS</h1><div class="subtitle">Find a party waiting in the coliseum</div></header>
+      <header class="brand compact-brand"><div class="brand-mark">✦</div><h1>SERVER LIST</h1><div class="subtitle">Find a party waiting in the coliseum</div></header>
       <p class="intro">Join an open public party, or enter the invite code for a private group.</p>
       <div class="group-filters">
         <label class="group-filter">Search party or leader<input class="text-input" id="group-search" type="search" placeholder="Party name or leader" autocomplete="off"></label>
@@ -530,7 +530,7 @@
     if (!panel) return;
     const slots = Array.from({ length: 4 }, (_, index) => {
       const p = currentRoom.players[index];
-      if (!p) return `<article class="party-slot vacant-slot"><div class="slot-heading"><span>PLAYER ${index + 1}</span><span>OPEN</span></div><div class="slot-portrait empty-portrait"><span>＋</span></div><div class="vacant-title">Open seat</div><div class="vacant-copy">${currentRoom.visibility === 'public' ? 'Find this party in<br>Browse Groups' : currentRoom.visibility === 'closed' ? 'Party is closed<br>to new players' : 'Share your party code<br>to invite a player'}</div><div class="slot-status">Waiting to join</div></article>`;
+      if (!p) return `<article class="party-slot vacant-slot"><div class="slot-heading"><span>PLAYER ${index + 1}</span><span>${currentRoom.visibility === 'closed' ? 'LOCKED' : 'OPEN'}</span></div><div class="slot-portrait empty-portrait ${currentRoom.visibility === 'closed' ? 'locked-slot-portrait' : ''}"><span>${currentRoom.visibility === 'closed' ? '🔒' : '＋'}</span></div><div class="vacant-title">${currentRoom.visibility === 'closed' ? 'Party locked' : 'Open seat'}</div><div class="vacant-copy">${currentRoom.visibility === 'public' ? 'Find this party in<br>the server list' : currentRoom.visibility === 'closed' ? 'Party is closed<br>to new players' : 'Share your party code<br>to invite a player'}</div><div class="slot-status">${currentRoom.visibility === 'closed' ? 'Locked' : 'Waiting to join'}</div></article>`;
       const isSelf = p.id === playerId;
       const h = HEROES.find(character => character.id === p.hero);
       const heroFace = h
@@ -562,12 +562,12 @@
     const accessNames = { public: 'Public', private: 'Private', closed: 'Closed' };
     const currentAccessName = accessNames[currentRoom.visibility] || 'Private';
     const partyAccessBar = currentRoom.visibility === 'public'
-      ? `<div class="party-public-banner"><strong>Public party</strong><span>Anyone can find this group in Browse Groups · No invite code</span></div>`
+      ? `<div class="party-public-banner"><strong>Public party</strong><span>Anyone can find this group</span></div>`
       : currentRoom.visibility === 'closed'
         ? `<div class="party-public-banner party-closed-banner"><strong>Party closed</strong><span>New players cannot join until the host reopens it.</span></div>`
         : `<div class="party-code-bar"><div class="room-code-label">Invite friends with this code</div><div class="party-code-share"><div class="room-code">${esc(currentRoom.code)}</div><button class="btn quiet" data-action="copy">Copy code</button></div></div>`;
     const accessControl = isHost
-      ? `<div class="party-access-menu"><button class="btn quiet party-access-trigger" type="button" data-action="toggle-access" aria-expanded="false">Access: ${currentAccessName} <span aria-hidden="true">▾</span></button><div class="party-access-options" hidden><div class="party-access-heading">Who can join?</div>${[['public','Public','Listed in Browse Groups'],['private','Private','Code or invite link required'],['closed','Closed','Block all new players']].map(([value,label,detail]) => `<button type="button" class="party-access-option ${currentRoom.visibility === value ? 'selected' : ''}" data-party-access="${value}" ${currentRoom.visibility === value ? 'aria-current="true"' : ''}><strong>${label}</strong><small>${detail}</small></button>`).join('')}</div></div>`
+      ? `<div class="party-access-menu"><button class="btn quiet party-access-trigger" type="button" data-action="toggle-access" aria-expanded="false">Access: ${currentAccessName} <span aria-hidden="true">▾</span></button><div class="party-access-options" hidden><div class="party-access-heading">Who can join?</div>${[['public','Public','Listed in the server list'],['private','Private','Code or invite link required'],['closed','Closed','Block all new players']].map(([value,label,detail]) => `<button type="button" class="party-access-option ${currentRoom.visibility === value ? 'selected' : ''}" data-party-access="${value}" ${currentRoom.visibility === value ? 'aria-current="true"' : ''}><strong>${label}</strong><small>${detail}</small></button>`).join('')}</div></div>`
       : `<span class="party-access-readonly">Access: ${currentAccessName}</span>`;
     panel.innerHTML = `
       <div class="party-lobby-toolbar">${accessControl}<button class="btn quiet" type="button" data-action="copy-link">Copy invite link</button></div>
@@ -576,7 +576,7 @@
       ${partyAccessBar}
       <div class="party-progress"><span>${currentRoom.players.length}/4 joined</span><span>Choose a hero and ready up</span></div>
       <div class="party-slot-grid">${slots}</div>
-      <div class="lobby-actions"><span class="lobby-note">${isHost ? 'The host can start once everyone is ready.' : 'The host will start the run when the party is ready.'}</span>
+      <div class="lobby-actions"><span class="lobby-note">${isHost ? 'The host can start once everyone is ready' : 'The host will start the run when the party is ready.'}</span>
         <div class="lobby-action-buttons"><button class="btn quiet" data-action="leave">Leave party</button><button class="btn secondary" data-action="ready" ${(HEROES.some(character => character.id === self?.hero) || self?.hero === 'Random') ? '' : 'disabled'}>${self?.ready ? 'Cancel ready' : 'Ready up'}</button>${isHost ? `<button class="btn" data-action="start" ${canStart ? '' : 'disabled'}>Start the run</button>` : ''}</div>
       </div>`;
     panel.querySelectorAll('[data-step]').forEach(button => button.addEventListener('click', () => stepLobbyCharacter(Number(button.dataset.step))));
@@ -913,10 +913,18 @@
     }
     return visible;
   }
-  function projectilePositionAt(projectile, at, snapshotRoom) {
+  function projectilePositionAt(projectile, at, snapshotRoom, snapshotAt = null) {
     if (Number.isFinite(projectile.renderCreatedAt)) {
       if (at < projectile.renderCreatedAt) return null;
       const speed = projectile.speed || 0;
+      if (Number.isFinite(snapshotAt) && Number.isFinite(projectile.maxRange)
+        && Number.isFinite(projectile.distanceTravelled) && Number.isFinite(projectile.dirX) && Number.isFinite(projectile.dirY)) {
+        const remaining = Math.max(0, projectile.maxRange - projectile.distanceTravelled);
+        const elapsed = Math.max(0, (at - snapshotAt) / 1000);
+        const travel = Math.min(remaining, speed * elapsed);
+        if (remaining <= 0.001 || (travel >= remaining && elapsed > 0)) return null;
+        return { x: projectile.x + projectile.dirX * travel, y: projectile.y + projectile.dirY * travel };
+      }
       let target = null;
       if (projectile.type === 'enemy') target = { x: projectile.tx, y: projectile.ty };
       else target = snapshotRoom?.game?.enemies?.find(enemy => enemy.id === projectile.target);
@@ -960,7 +968,7 @@
             point = { x: old.x + (impact.x - old.x) * progress, y: old.y + (impact.y - old.y) * progress };
           }
         } else {
-          point = projectilePositionAt(old, targetAt, frame?.before?.room || room);
+          point = projectilePositionAt(old, targetAt, frame?.before?.room || room, frame?.before?.at ?? null);
         }
       } else {
         const snapshotRoom = current ? (frame?.after?.room || room) : (frame?.before?.room || room);
@@ -1022,7 +1030,10 @@
     ctx.save(); ctx.translate(x, y);
     ctx.globalAlpha = e.stunnedUntil > Date.now() ? .65 : 1;
     ctx.drawImage(sprite.canvas, -sprite.size / 2, -sprite.size / 2, sprite.size, sprite.size);
-    if (e.markedUntil > Date.now()) { ctx.strokeStyle='#fff4ce'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(0,0,r+5,0,Math.PI*2); ctx.stroke(); }
+    if (e.markedUntil > Date.now()) {
+      ctx.save(); ctx.fillStyle='#fff0bd'; ctx.shadowColor='#f2bd62'; ctx.shadowBlur=10;
+      ctx.font='bold 13px Georgia,serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('☠',0,-r-21); ctx.restore();
+    }
     if (e.hp < e.maxHp || e.type === 'king') {
       const bw = r*2.2; ctx.fillStyle='rgba(13,12,15,.8)'; ctx.fillRect(-bw/2,-r-11,bw,4);
       ctx.fillStyle=e.type==='king'?'#f1c86c':'#84d373'; ctx.fillRect(-bw/2,-r-11,bw*Math.max(0,e.hp/e.maxHp),4);

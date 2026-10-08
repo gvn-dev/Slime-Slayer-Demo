@@ -439,6 +439,8 @@ kbd { display:inline-grid; place-items:center; min-width:22px; min-height:20px; 
 .party-slot img.slot-portrait { object-fit:cover; object-position:center 22%; background:#18171b; }
 .empty-portrait { display:grid; place-items:center; color:#c6a66e; border:1px dashed rgba(226,190,130,.24); background:radial-gradient(ellipse at 50% 30%,#393337,#201f23 72%); }
 .empty-portrait span { display:grid; place-items:center; width:54px; height:54px; border:1px solid rgba(232,183,97,.32); border-radius:50%; font-size:1.8rem; }
+.locked-slot-portrait { border-color:rgba(196,126,111,.36); background:radial-gradient(ellipse at 50% 30%,#3a3033,#201f23 72%); }
+.locked-slot-portrait span { border-color:rgba(196,126,111,.4); font-size:1.35rem; }
 .random-portrait span { font:700 2rem Cinzel,Georgia,serif; color:#f3d18b; }
 .character-selector { min-height:70px; display:grid; grid-template-columns:44px 1fr 44px; align-items:center; gap:4px; margin:8px -3px 0; }
 .character-arrow { width:44px; height:46px; padding:0; border:1px solid rgba(221,194,152,.3); border-radius:7px; color:#f0d7a9; background:#29262a; font:400 1.55rem/1 Inter,sans-serif; cursor:pointer; touch-action:manipulation; }

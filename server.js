@@ -345,10 +345,14 @@ function updateGame(room, dt, now) {
           newEffect(game, (player.x + target.x) / 2, (player.y + target.y) / 2, '#e8e7cc', 54, 'slash', 0.23);
           damageEnemy(room, target, stats.damage, player.id, now);
         } else {
+          const aimX = target.x - player.x;
+          const aimY = target.y - player.y;
+          const aimLength = Math.max(1, Math.hypot(aimX, aimY));
           game.projectiles.push({
             id: game.nextId++, type: 'hero', from: player.id, target: target.id,
             x: player.x, y: player.y, originX: player.x, originY: player.y,
             createdAt: now, launchedThisTick: true, speed: stats.kind === 'arrow' ? 560 : 390,
+            maxRange: stats.range, distanceTravelled: 0, dirX: aimX / aimLength, dirY: aimY / aimLength,
             damage: stats.damage, color: stats.kind === 'arrow' ? '#f2e8ff' : '#8ee677',
             radius: stats.kind === 'arrow' ? 6 : 9, poison: stats.kind === 'orb', mark: false
           });
@@ -394,10 +398,14 @@ function updateGame(room, dt, now) {
     if (enemy.cooldown > 0) continue;
     if (ranged && (shouldShoot || targetDistance < 90)) {
       const mark = enemy.type === 'black';
+      const aimX = target.x - enemy.x;
+      const aimY = target.y - enemy.y;
+      const aimLength = Math.max(1, Math.hypot(aimX, aimY));
       game.projectiles.push({
         id: game.nextId++, type: 'enemy', from: enemy.id, target: target.id,
         x: enemy.x, y: enemy.y, originX: enemy.x, originY: enemy.y,
         createdAt: now, launchedThisTick: true, tx: target.x, ty: target.y,
+        maxRange: Math.hypot(aimX, aimY), distanceTravelled: 0, dirX: aimX / aimLength, dirY: aimY / aimLength,
         speed: enemy.type === 'yellow' ? 300 : 210, damage: enemy.damage,
         color: enemy.color, radius: enemy.type === 'black' ? 12 : 8,
         slow: enemy.type === 'green', mark
@@ -430,11 +438,27 @@ function updateGame(room, dt, now) {
     const target = isHeroProjectile
       ? game.enemies.find(e => e.id === projectile.target)
       : room.players.find(p => p.id === projectile.target && p.alive);
-    if (!target) { game.projectiles = game.projectiles.filter(p => p !== projectile); continue; }
+    const maxRange = Number.isFinite(projectile.maxRange) ? projectile.maxRange : 0;
+    const distanceTravelled = projectile.distanceTravelled || 0;
+    const remainingRange = Math.max(0, maxRange - distanceTravelled);
+    if (remainingRange <= 0.001) { game.projectiles = game.projectiles.filter(p => p !== projectile); continue; }
+    if (!target) {
+      const directionLength = Math.hypot(projectile.dirX || 0, projectile.dirY || 0);
+      if (!directionLength) { game.projectiles = game.projectiles.filter(p => p !== projectile); continue; }
+      const travel = Math.min(projectile.speed * dt, remainingRange);
+      projectile.x += projectile.dirX / directionLength * travel;
+      projectile.y += projectile.dirY / directionLength * travel;
+      projectile.distanceTravelled = distanceTravelled + travel;
+      projectile.launchedThisTick = false;
+      if (projectile.distanceTravelled >= maxRange - 0.001) game.projectiles = game.projectiles.filter(p => p !== projectile);
+      continue;
+    }
     const dx = (isHeroProjectile ? target.x : projectile.tx) - projectile.x;
     const dy = (isHeroProjectile ? target.y : projectile.ty) - projectile.y;
     const dist = Math.max(1, Math.hypot(dx, dy));
-    const step = projectile.speed * dt;
+    projectile.dirX = dx / dist;
+    projectile.dirY = dy / dist;
+    const step = Math.min(projectile.speed * dt, remainingRange);
     const travel = Math.min(step, dist);
     const moveX = dx / dist * travel;
     const moveY = dy / dist * travel;
@@ -493,13 +517,14 @@ function updateGame(room, dt, now) {
       const impact = newEffect(game, projectile.x, projectile.y, projectile.color, 26, 'pop', 0.18);
       impact.projectileId = projectile.id;
       game.projectiles = game.projectiles.filter(p => p !== projectile);
-    } else if (dist <= step) {
+    } else if (dist <= step || step >= remainingRange) {
       // A ranged attack that reaches its aimed point without intersecting its
       // moving target is a miss; it must not linger there and damage later.
       game.projectiles = game.projectiles.filter(p => p !== projectile);
     } else {
       projectile.x = nextX;
       projectile.y = nextY;
+      projectile.distanceTravelled = distanceTravelled + travel;
       projectile.launchedThisTick = false;
     }
   }
@@ -644,7 +669,7 @@ const server = http.createServer(async (req, res) => {
           if (room.visibility === 'closed') return send(res, 403, { error: 'This party is locked and is not accepting new players.' });
           const linkAuthorized = roomIdentifier === room.joinToken && body.joinToken === room.joinToken;
           if (room.visibility === 'public' && roomIdentifier !== room.id && !linkAuthorized) {
-            return send(res, 403, { error: 'Join this public party from Browse Groups.' });
+            return send(res, 403, { error: 'Join this public party from the Server List.' });
           }
           if (room.visibility === 'private' && roomIdentifier.toUpperCase() !== room.code && !linkAuthorized) {
             return send(res, 403, { error: 'Enter this party’s invite code to unlock it.' });
