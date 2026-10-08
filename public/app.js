@@ -38,6 +38,8 @@
   let volume = Number(localStorage.getItem('slime-slayer-volume') ?? 0.25);
   let keys = new Set();
   let moveVector = { x: 0, y: 0 };
+  let smoothedMoveVector = { x: 0, y: 0 };
+  let lastMovementUpdateAt = 0;
   let lastMoveAt = 0;
   let inputErrorShown = false;
   let legacyInputFallback = false;
@@ -102,6 +104,15 @@
     if (name !== 'game') stopDrawing();
   }
 
+  function renderTitleScreen() {
+    setScreen('title');
+    app.innerHTML = `<section class="screen title-screen" aria-label="Slime Slayer title screen">
+      <div class="title-art-placeholder" role="img" aria-label="Placeholder for title screen background art"></div>
+      <div class="title-screen-content"><h1>Slime Slayer</h1><button class="press-start" type="button">Press to start</button></div>
+    </section>`;
+    app.querySelector('.title-screen').addEventListener('click', renderMenu);
+  }
+
   function renderMenu() {
     setScreen('menu');
     app.innerHTML = `
@@ -150,7 +161,7 @@
       <h2>${creating ? 'Name your party' : 'Enter the party code'}</h2>
       <p class="small muted">${creating ? 'Your friends can join with the code shown in the lobby.' : 'Ask the party host for the five-character room code.'}</p>
       <label class="dialog-label" for="party-dialog-input">${creating ? 'Party name' : 'Party code'}</label>
-      <input class="text-input dialog-input ${creating ? '' : 'code-input'}" id="party-dialog-input" maxlength="${creating ? 28 : 5}" placeholder="${creating ? 'The Slime Slayers' : 'ABCDE'}" ${creating ? 'required' : 'required autocomplete="off"'}>
+      <input class="text-input dialog-input ${creating ? '' : 'code-input'}" id="party-dialog-input" maxlength="${creating ? 28 : 5}" placeholder="${creating ? 'The Slime Slayers' : 'ABCDE'}" value="${creating ? '' : esc(roomCode)}" ${creating ? 'required' : 'required autocomplete="off"'}>
       <div class="dialog-actions"><button class="btn quiet" type="button" data-action="cancel">Cancel</button><button class="btn" type="submit">${creating ? 'Create party' : 'Join party'}</button></div></form>`;
     document.body.append(modal);
     const input = modal.querySelector('input');
@@ -250,6 +261,7 @@
       const preserveLobbyHero = currentScreen === 'lobby' && pollStartedAt < lobbyHeroActionAckAt;
       acceptRoom(result.room, preserveLobbyHero);
     } catch (error) {
+      if (currentScreen === 'quitting') return;
       clearInterval(pollHandle);
       if (currentScreen !== 'menu') { localStorage.removeItem('slime-slayer-room'); roomCode = ''; currentRoom = null; renderMenu(); }
       showToast(error.message || 'Room connection lost.');
@@ -468,9 +480,28 @@
     renderMenu();
   }
 
+  async function quitGame() {
+    document.querySelector('#modal-root')?.remove();
+    document.querySelector('#quit-confirm')?.remove();
+    clearInterval(pollHandle);
+    pollHandle = null;
+    setScreen('quitting');
+    keys.clear();
+    moveVector = { x: 0, y: 0 };
+    smoothedMoveVector = { x: 0, y: 0 };
+    try { await act('leave'); } catch { /* Clear the local run even if the room has already expired. */ }
+    snapshots = [];
+    roomCode = '';
+    currentRoom = null;
+    localStorage.removeItem('slime-slayer-room');
+    renderTitleScreen();
+  }
+
   function enterGame() {
     if (!currentRoom) return;
     setScreen('game');
+    smoothedMoveVector = { x: 0, y: 0 };
+    lastMovementUpdateAt = performance.now();
     overlayStateKey = '';
     lastPartyStatusMarkup = '';
     minimapDots = new Map();
@@ -793,17 +824,28 @@
   }
   function startMovementLoop() {
     if (window.moveLoop) clearInterval(window.moveLoop);
+    lastMovementUpdateAt = performance.now();
     window.moveLoop=setInterval(()=>{
-      if(currentScreen!=='game'||currentRoom?.status!=='playing') return;
+      const now=performance.now();
+      const deltaSeconds=Math.min(.05,Math.max(0,(now-lastMovementUpdateAt)/1000));
+      lastMovementUpdateAt=now;
+      if(currentScreen!=='game'||currentRoom?.status!=='playing') {
+        smoothedMoveVector={x:0,y:0};
+        return;
+      }
       let x=moveVector.x,y=moveVector.y;
       if(keys.has('ArrowLeft')||keys.has('a'))x-=1;
       if(keys.has('ArrowRight')||keys.has('d'))x+=1;
       if(keys.has('ArrowUp')||keys.has('w'))y-=1;
       if(keys.has('ArrowDown')||keys.has('s'))y+=1;
       const length=Math.hypot(x,y);if(length>1){x/=length;y/=length;}
-      const now=Date.now();if(now-lastMoveAt<(legacyInputFallback?80:40))return;lastMoveAt=now;
-      sendMovement(x,y);
-    },35);
+      // Ease changes in heading and speed so keyboard direction changes do not snap.
+      const blend=1-Math.exp(-deltaSeconds/.09);
+      smoothedMoveVector.x+=(x-smoothedMoveVector.x)*blend;
+      smoothedMoveVector.y+=(y-smoothedMoveVector.y)*blend;
+      const sendAt=Date.now();if(sendAt-lastMoveAt<(legacyInputFallback?80:40))return;lastMoveAt=sendAt;
+      sendMovement(smoothedMoveVector.x,smoothedMoveVector.y);
+    },16);
   }
   async function sendMovement(x,y) {
     const body=JSON.stringify({playerId,x,y});
@@ -831,37 +873,41 @@
   }
   window.addEventListener('keydown',event=>{
     const key=MOVEMENT_KEY_CODES[event.code]||(event.key.length===1?event.key.toLowerCase():event.key);
+    if(currentScreen==='title'&&(event.code==='Enter'||event.code==='Space')){event.preventDefault();renderMenu();return;}
     if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(key))event.preventDefault();
     if((key==='e'||key===' ')&&currentScreen==='game'&&!event.repeat){act('ability');return;}
     keys.add(key);
   });
   window.addEventListener('keyup',event=>{const key=MOVEMENT_KEY_CODES[event.code]||(event.key.length===1?event.key.toLowerCase():event.key);keys.delete(key);});
-  window.addEventListener('blur',()=>{keys.clear();moveVector={x:0,y:0};});
+  window.addEventListener('blur',()=>{keys.clear();moveVector={x:0,y:0};smoothedMoveVector={x:0,y:0};lastMovementUpdateAt=performance.now();});
 
   function showSettings() {
     const existing=document.querySelector('#modal-root');
     if(existing){existing.remove();return;}
     const modal=document.createElement('div');modal.id='modal-root';modal.className='overlay';modal.style.position='fixed';modal.style.zIndex='30';
-    modal.innerHTML=`<div class="overlay-card" style="text-align:left"><div class="eyebrow">Slime Slayer</div><h2>Settings &amp; quick rules</h2><p class="small muted">Move with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrow keys. Your hero attacks automatically when a slime is in range. Press <kbd>E</kbd> to use your champion ability.</p><p class="small muted">Survive the ten waves. Pick one upgrade after every cleared wave. In co-op, fallen champions return between waves. Red slimes burst when defeated. Watch for ranged shots from green, yellow, and black slimes.</p><label class="small" for="volume-slider">Sound effects <span id="volume-label">${Math.round(volume*100)}%</span></label><input id="volume-slider" type="range" min="0" max="100" value="${Math.round(volume*100)}" style="display:block;width:100%;margin:12px 0 19px"><div style="display:flex;justify-content:flex-end"><button class="btn" data-action="close">Close</button></div></div>`;
+    const quitButton = currentScreen === 'game' ? '<button class="btn danger" data-action="quit">Quit game</button>' : '';
+    modal.innerHTML=`<div class="overlay-card settings-card" style="text-align:left"><div class="eyebrow">Slime Slayer</div><h2>Settings &amp; quick rules</h2><p class="small muted">Move with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrow keys. Your hero attacks automatically when a slime is in range. Press <kbd>E</kbd> to use your champion ability.</p><p class="small muted">Survive the ten waves. Pick one upgrade after every cleared wave. In co-op, fallen champions return between waves. Red slimes burst when defeated. Watch for ranged shots from green, yellow, and black slimes.</p><label class="small" for="volume-slider">Sound effects <span id="volume-label">${Math.round(volume*100)}%</span></label><input id="volume-slider" type="range" min="0" max="100" value="${Math.round(volume*100)}" style="display:block;width:100%;margin:12px 0 19px"><div class="settings-actions">${quitButton}<button class="btn" data-action="close">Close</button></div></div>`;
     document.body.append(modal);
     modal.querySelector('[data-action="close"]').addEventListener('click',()=>modal.remove());
+    modal.querySelector('[data-action="quit"]')?.addEventListener('click',()=>{modal.remove();showQuitConfirmation();});
     modal.addEventListener('click',event=>{if(event.target===modal)modal.remove();});
     modal.querySelector('#volume-slider').addEventListener('input',event=>{volume=Number(event.target.value)/100;localStorage.setItem('slime-slayer-volume',String(volume));modal.querySelector('#volume-label').textContent=`${Math.round(volume*100)}%`;sound(500,.08);});
   }
 
-  // Resume a room after a reload using the same local player identity.
-  async function resumeSavedRoom() {
-    if (!roomCode) { renderMenu(); return; }
-    try {
-      const result=await api(`/api/rooms/${roomCode}/join`,{playerId,name:playerName,hero:selectedHero});
-      currentRoom=result.room;
-      startPolling();
-      if(currentRoom.status==='playing')enterGame();
-      else if(currentRoom.status==='finished')enterGame();
-      else renderLobby(true);
-    } catch {
-      roomCode='';localStorage.removeItem('slime-slayer-room');renderMenu();
-    }
+  function showQuitConfirmation() {
+    const modal=document.createElement('div');
+    modal.id='quit-confirm';modal.className='overlay quit-overlay';modal.style.position='fixed';modal.style.zIndex='31';
+    modal.innerHTML=`<div class="overlay-card quit-card" role="alertdialog" aria-modal="true" aria-labelledby="quit-title" aria-describedby="quit-warning"><div class="eyebrow">Leave the arena?</div><h2 id="quit-title">Quit game</h2><p id="quit-warning" class="small muted">Your progress will be lost.</p><div class="quit-actions"><button class="btn quiet" type="button" data-action="cancel-quit">Keep playing</button><button class="btn danger" type="button" data-action="confirm-quit">Quit game</button></div></div>`;
+    document.body.append(modal);
+    modal.querySelector('[data-action="cancel-quit"]').addEventListener('click',()=>modal.remove());
+    const confirmButton=modal.querySelector('[data-action="confirm-quit"]');
+    confirmButton.addEventListener('click',()=>{confirmButton.disabled=true;confirmButton.textContent='Leaving…';void quitGame();});
+    modal.addEventListener('click',event=>{if(event.target===modal)modal.remove();});
+    modal.addEventListener('keydown',event=>{if(event.key==='Escape')modal.remove();});
+    modal.querySelector('[data-action="cancel-quit"]').focus();
   }
-  resumeSavedRoom();
+
+  // Always begin with the title screen. A saved room code remains available in
+  // Party → Join so a returning player can reconnect after starting at the title.
+  renderTitleScreen();
 })();

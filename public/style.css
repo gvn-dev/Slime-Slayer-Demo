@@ -82,6 +82,16 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold-bright
 .name-row .text-input { width: 190px; min-height: 38px; padding: 8px 10px; }
 .menu-foot { text-align:center; color:#80786f; font-size:.72rem; margin-top:22px; }
 
+.title-screen { display:grid; place-items:center; min-height:100svh; isolation:isolate; cursor:pointer; background:#0b0b0f; }
+.title-art-placeholder { position:absolute; z-index:-1; inset:4%; overflow:hidden; border:1px dashed rgba(226,188,120,.22); border-radius:14px; background:radial-gradient(ellipse at 50% 67%,rgba(177,118,68,.19),transparent 32%),radial-gradient(ellipse at 50% 100%,rgba(75,53,48,.48),transparent 58%),linear-gradient(180deg,#131116 0%,#19161a 52%,#0d0d11 100%); }
+.title-art-placeholder::before { content:''; position:absolute; left:50%; bottom:7%; width:min(72vw,940px); aspect-ratio:2.3; border:2px solid rgba(218,177,116,.14); border-bottom:0; border-radius:50% 50% 0 0 / 72% 72% 0 0; transform:translateX(-50%); box-shadow:0 -16px 70px rgba(197,133,74,.08),inset 0 25px 48px rgba(206,153,98,.035); }
+.title-art-placeholder::after { content:'BACKGROUND ART PLACEHOLDER'; position:absolute; right:18px; bottom:16px; color:rgba(229,205,169,.28); font-size:.58rem; letter-spacing:.19em; }
+.title-screen-content { position:relative; z-index:1; width:min(94vw,1000px); padding:28px; text-align:center; text-shadow:0 5px 30px rgba(0,0,0,.8); }
+.title-screen h1 { margin:0; color:#f4e7d0; font:800 clamp(3.2rem,11vw,7.4rem)/1 Cinzel,Georgia,serif; letter-spacing:.045em; }
+.press-start { margin-top:30px; padding:13px 23px; border:1px solid rgba(237,198,130,.52); border-radius:7px; background:rgba(18,16,18,.66); color:#f1d7a8; font:600 clamp(.76rem,2vw,.95rem) Inter,sans-serif; letter-spacing:.22em; text-transform:uppercase; cursor:pointer; animation:pressStartPulse 1.8s ease-in-out infinite; }
+.press-start:hover,.press-start:focus-visible { border-color:var(--gold-bright); background:rgba(66,47,34,.78); }
+@keyframes pressStartPulse { 0%,100% { opacity:.72; box-shadow:0 0 0 rgba(232,183,97,0); } 50% { opacity:1; box-shadow:0 0 24px rgba(232,183,97,.2); } }
+
 .lobby-screen { display:grid; place-items:center; padding:45px 24px; }
 .lobby-panel { width:min(780px, 100%); position:relative; z-index:1; padding:32px; border:1px solid var(--line); border-radius:13px; background:var(--panel); box-shadow:0 22px 80px rgba(0,0,0,.42); }
 .lobby-title { text-align:center; margin:0 0 4px; font:600 clamp(1.7rem, 5vw, 2.5rem) Cinzel, Georgia, serif; }
@@ -149,6 +159,11 @@ kbd { display:inline-grid; place-items:center; min-width:22px; min-height:20px; 
 .overlay[hidden] { display:none; }
 .overlay-card { width:min(620px,100%); padding:25px; border:1px solid rgba(236,195,124,.35); border-radius:12px; background:rgba(27,25,26,.97); box-shadow:0 18px 75px rgba(0,0,0,.56); text-align:center; }
 .overlay-card h2 { margin:0 0 7px; font:700 clamp(1.45rem,4vw,2rem) Cinzel,Georgia,serif; color:#f1dfc2; }
+.settings-actions,.quit-actions { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:18px; }
+.quit-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+.quit-actions .btn { width:100%; padding-left:10px; padding-right:10px; }
+.quit-overlay { z-index:31; }
+.quit-card { max-width:430px; }
 .upgrade-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:9px; margin-top:20px; }
 .upgrade-card { min-height:135px; border:1px solid rgba(226,194,145,.19); border-radius:8px; padding:13px 10px; background:#242124; color:var(--ink); cursor:pointer; }
 .upgrade-card:hover { border-color:var(--gold); background:#302a26; }
@@ -170,6 +185,10 @@ kbd { display:inline-grid; place-items:center; min-width:22px; min-height:20px; 
   .top-stats { gap:8px; }
 }
 @media (max-width: 600px) {
+  .title-art-placeholder { inset:3%; }
+  .title-art-placeholder::after { right:12px; bottom:12px; font-size:.48rem; }
+  .title-screen-content { padding:18px; }
+  .press-start { margin-top:23px; }
   .screen::before { inset:8px; } .screen::after { inset:13px; }
   .menu-screen { padding:31px 22px 42px; }
   .brand { margin:14px auto 20px; }
