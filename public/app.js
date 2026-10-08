@@ -44,6 +44,9 @@
   let masterVolume = readUnitSetting('slime-slayer-master-volume', 1);
   let musicVolume = readUnitSetting('slime-slayer-music-volume', 0.35);
   let brightness = readBrightnessSetting();
+  let showFpsCounter = localStorage.getItem('slime-slayer-show-fps') !== 'false';
+  let showPingDisplay = localStorage.getItem('slime-slayer-show-ping') !== 'false';
+  let measuredPingMs = null;
   let keys = new Set();
   let moveVector = { x: 0, y: 0 };
   let smoothedMoveVector = { x: 0, y: 0 };
@@ -381,7 +384,7 @@
   function heroCard(h, compact = false, selected = selectedHero === h.id) {
     return `<button class="hero-card ${compact ? 'compact-hero-card' : ''} ${selected ? 'selected' : ''}" data-select-hero="${h.id}" aria-pressed="${selected}">
       <div class="portrait"><img src="/art/${encodeURIComponent(h.art)}" alt="${h.id} character art"></div>
-      <div class="hero-meta"><div class="hero-name"><span>${h.id}</span><span style="color:${h.color}">✦</span></div><div class="hero-role">${h.role}</div><div class="hero-flair">${h.flavor}</div></div></button>`;
+      <div class="hero-meta"><div class="hero-name"><span>${h.id}</span><span style="color:${h.id==='Ravela'?'#000000':h.color}">✦</span></div><div class="hero-role">${h.role}</div><div class="hero-flair">${h.flavor}</div></div></button>`;
   }
   function renderSoloSelectKeepName() {
     const name = app.querySelector('#solo-player-name')?.value || playerName;
@@ -451,6 +454,7 @@
   }
   function startPolling() {
     clearInterval(pollHandle);
+    measuredPingMs = null;
     pollHandle = setInterval(poll, 100);
     poll();
   }
@@ -460,6 +464,8 @@
     const pollStartedAt = performance.now();
     try {
       const result = await api(`/api/rooms/${encodeURIComponent(roomKey)}?playerId=${encodeURIComponent(playerId)}`, null, 'GET');
+      const pingSample = performance.now() - pollStartedAt;
+      measuredPingMs = measuredPingMs === null ? pingSample : measuredPingMs * .7 + pingSample * .3;
       // A GET that began before our character action was acknowledged may contain
       // the previous hero. Keep the immediate local choice until a later GET sees it.
       const preserveLobbyHero = currentScreen === 'lobby' && pollStartedAt < lobbyHeroActionAckAt;
@@ -776,7 +782,7 @@
           <div class="game-brand">SLIME SLAYER</div>
           <div class="wave-block"><div class="wave-value" id="wave-label">Wave 1 / 10</div></div>
           <div class="progress-wrap"><div class="progress-label"><span id="progress-copy">The slimes are gathering</span><span id="enemy-count">0 enemies</span></div><div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div></div>
-          <div class="top-stats"><span class="run-clock" title="Run time">TIME <strong id="game-timer">00:00</strong></span><span id="fps-counter" title="Rendered frames per second">-- FPS</span></div>
+          <div class="top-stats"><span class="run-clock" title="Run time">TIME <strong id="game-timer">00:00</strong></span><span id="fps-counter" title="Rendered frames per second" ${showFpsCounter?'':'hidden'}>-- FPS</span><span class="ping-counter" id="ping-display" ${showPingDisplay?'':'hidden'}>PING <strong id="ping-value">-- ms</strong></span></div>
           <button class="icon-btn gear-icon" title="Settings and controls" aria-label="Settings and controls" data-action="help">⚙</button>
         </header>
         <div class="game-body">
@@ -840,7 +846,7 @@
       frameCount++;
       if (time - fpsWindowStart >= 500) {
         const fpsNode = document.querySelector('#fps-counter');
-        if (fpsNode) {
+        if (showFpsCounter && fpsNode) {
           const fps = Math.round(frameCount * 1000 / (time - fpsWindowStart));
           fpsNode.textContent = `${fps} FPS`;
           fpsNode.classList.toggle('fps-low', fps < 55);
@@ -1135,6 +1141,7 @@
     const runTime=formatRunTime(g.elapsedTime);
     const timer=document.querySelector('#game-timer'); if(timer) timer.textContent=runTime;
     const sidebarTime=document.querySelector('#run-time'); if(sidebarTime) sidebarTime.textContent=runTime;
+    const pingNode=document.querySelector('#ping-value'); if(pingNode) pingNode.textContent=measuredPingMs===null?'-- ms':`${Math.round(measuredPingMs)} ms`;
     const pauseButton=document.querySelector('#solo-pause');
     if(pauseButton){
       const paused=Boolean(g.paused);
@@ -1349,6 +1356,8 @@
         <div class="settings-group-title">Display</div>
         <label class="setting-label" for="brightness-slider"><span>Brightness</span><output id="brightness-label">${brightness}%</output></label>
         <input class="setting-range" id="brightness-slider" type="range" min="0" max="100" step="1" value="${brightness}">
+        <label class="setting-toggle" for="fps-display-toggle"><span>Show FPS counter</span><input id="fps-display-toggle" type="checkbox" ${showFpsCounter?'checked':''}></label>
+        <label class="setting-toggle" for="ping-display-toggle"><span>Show ping</span><input id="ping-display-toggle" type="checkbox" ${showPingDisplay?'checked':''}></label>
       </div>
       <div class="settings-actions">${quitButton}<button class="btn" data-action="close">Close</button></div>
     </div>`;
@@ -1375,6 +1384,16 @@
       modal.querySelector('#brightness-label').textContent=`${brightness}%`;
       applyBrightness();
       sound(660,.08,'triangle');
+    });
+    modal.querySelector('#fps-display-toggle').addEventListener('change',event=>{
+      showFpsCounter=event.target.checked;
+      localStorage.setItem('slime-slayer-show-fps',String(showFpsCounter));
+      const fpsNode=document.querySelector('#fps-counter'); if(fpsNode) fpsNode.hidden=!showFpsCounter;
+    });
+    modal.querySelector('#ping-display-toggle').addEventListener('change',event=>{
+      showPingDisplay=event.target.checked;
+      localStorage.setItem('slime-slayer-show-ping',String(showPingDisplay));
+      const pingDisplay=document.querySelector('#ping-display'); if(pingDisplay) pingDisplay.hidden=!showPingDisplay;
     });
   }
 

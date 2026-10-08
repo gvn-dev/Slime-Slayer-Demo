@@ -129,6 +129,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold-bright
 .top-stats { display:flex; gap:14px; align-items:center; margin-left:auto; font-size:.72rem; color:#d4c8b5; white-space:nowrap; }
 .top-stats strong { color:#fff0d3; }
 .run-clock { color:#a99d8c; font-size:.65rem; letter-spacing:.08em; font-variant-numeric:tabular-nums; }
+.ping-counter { color:#a99d8c; font-size:.65rem; letter-spacing:.06em; font-variant-numeric:tabular-nums; }
+.ping-counter strong { color:#e7d3aa; }
+#fps-counter[hidden], .ping-counter[hidden] { display:none; }
 #fps-counter { min-width:48px; color:#a8d997; font-variant-numeric:tabular-nums; }
 #fps-counter.fps-low { color:#ee8871; }
 .icon-btn { border:1px solid rgba(222,210,192,.2); background:#242226; border-radius:7px; width:37px; height:37px; cursor:pointer; }
@@ -202,6 +205,8 @@ kbd { display:inline-grid; place-items:center; min-width:22px; min-height:20px; 
 .setting-label { display:flex; justify-content:space-between; align-items:center; gap:12px; margin:12px 0 3px; color:#e8dfd0; font-size:.78rem; }
 .setting-label output { color:#f0c977; font-variant-numeric:tabular-nums; }
 .setting-range { display:block; width:100%; margin:5px 0 13px; accent-color:var(--gold); }
+.setting-toggle { display:flex; justify-content:space-between; align-items:center; gap:12px; margin:11px 0 0; color:#e8dfd0; font-size:.78rem; cursor:pointer; }
+.setting-toggle input { width:17px; height:17px; margin:0; accent-color:var(--gold-bright); }
 .settings-note { margin:0 0 12px; font-size:.68rem; line-height:1.45; }
 .brightness-group { margin-top:14px; }
 .settings-actions,.quit-actions { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:18px; }
@@ -272,6 +277,7 @@ kbd { display:inline-grid; place-items:center; min-width:22px; min-height:20px; 
   .wave-value { font-size:.87rem; }
   .top-stats { gap:6px; font-size:.61rem; }
   .run-clock { font-size:.54rem; }
+  .ping-counter { font-size:.52rem; letter-spacing:.02em; }
   #fps-counter { min-width:auto; }
   .wave-block { min-width:58px; }
   .progress-wrap { min-width:40px; }
@@ -429,6 +435,7 @@ kbd { display:inline-grid; place-items:center; min-width:22px; min-height:20px; 
 .solo-hero-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:24px auto 0; }
 .solo-hero-grid .hero-card { min-width:0; }
 .solo-hero-grid .hero-card .portrait { height:clamp(140px,19vw,225px); }
+.solo-hero-grid .hero-card[data-select-hero="Aram"] img { object-position:center 45%; }
 .solo-specials { display:flex; justify-content:center; margin:13px auto 0; }
 .special-choice { display:flex; align-items:center; gap:11px; width:min(290px,100%); min-height:66px; padding:9px 14px; border:1px solid rgba(215,186,145,.18); border-radius:9px; background:#1a191b; color:var(--ink); text-align:left; cursor:pointer; }
 .special-choice:hover,.special-choice.selected { border-color:var(--gold-bright); box-shadow:0 0 0 1px rgba(255,217,139,.17); }
