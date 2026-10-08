@@ -534,6 +534,26 @@ const server = http.createServer(async (req, res) => {
         }
         return send(res, 200, { room: publicRoom(room, playerId), playerId });
       }
+      if (req.method === 'POST' && parts[3] === 'input') {
+        const body = await readJson(req);
+        const playerId = String(body.playerId || '');
+        const player = room.players.find(p => p.id === playerId);
+        if (!player) return send(res, 403, { error: 'This player is not in the room.' });
+        const now = Date.now();
+        player.lastSeen = now;
+        room.lastActivity = now;
+        if (room.status === 'playing' && room.game?.phase === 'wave' && now - player.lastInput >= 20) {
+          let x = clamp(Number(body.x) || 0, -1, 1);
+          let y = clamp(Number(body.y) || 0, -1, 1);
+          const len = Math.hypot(x, y);
+          if (len > 1) { x /= len; y /= len; }
+          player.move = { x, y };
+          if (len > 0.1) player.facing = { x: x / len, y: y / len };
+          player.lastInput = now;
+        }
+        res.writeHead(204, { 'Cache-Control': 'no-store' });
+        return res.end();
+      }
       if (req.method === 'POST' && parts[3] === 'action') {
         const body = await readJson(req);
         const playerId = String(body.playerId || '');
@@ -599,14 +619,18 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+const TICK_MS = Math.round(1000 / 30);
+let previousTickAt = Date.now();
 setInterval(() => {
   const now = Date.now();
+  const dt = clamp((now - previousTickAt) / 1000, 0, 0.1);
+  previousTickAt = now;
   for (const [code, room] of rooms) {
     if (now - room.lastActivity > ROOM_TTL) { rooms.delete(code); continue; }
     moveHost(room);
-    updateGame(room, 0.1, now);
+    updateGame(room, dt, now);
   }
-}, 100);
+}, TICK_MS);
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Slime Slayer demo listening on http://localhost:${PORT}`);

@@ -22,6 +22,7 @@ Open <http://localhost:3000>. To play with another device on the same Wi-Fi, ope
 - Ten waves that follow the slime lineup in the design outline, with a King Slime on wave ten.
 - Automatic hero attacks, four abilities, four between-wave upgrades, co-op revival between waves, and no friendly fire.
 - Keyboard controls on desktop and an on-screen movement pad and ability button on touch screens.
+- A live FPS readout while playing. Rendering follows the display's animation-frame rate; a 120 Hz display can render at up to 120 FPS.
 - The four existing character illustrations in the selection screens. Arena sprites, effects, and the coliseum are canvas placeholders designed to be replaced as the final art is created.
 
 ## Controls and rules
@@ -36,6 +37,8 @@ Open <http://localhost:3000>. To play with another device on the same Wi-Fi, ope
 ## Architecture notes
 
 `server.js` owns rooms and the simulation. Browsers send movement and action requests, then poll the shared room state. This keeps the current prototype dependency-free and lets multiple browsers join one running server. Room state is held in memory, so a server restart clears active runs. For this demo, deploy one server instance; multiple instances would need shared room storage and coordination.
+
+The simulation ticks at 30 Hz, while the browser interpolates received snapshots and renders with `requestAnimationFrame`. The arena background and slime sprites are cached, the background uses its own canvas layer, and the dynamic canvas resolution is capped to reduce high-DPI rendering cost. Actual FPS still depends on the device, browser, and display refresh rate; the in-game counter reports the measured rate.
 
 For a public competition link, deploy the folder as a Node web service with `npm start` as its start command. The server listens on the `PORT` environment variable supplied by the host. A deploy host/account and a public URL have not been configured yet.
 

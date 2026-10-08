@@ -13,8 +13,11 @@
     { id: 'swift', icon: '➤', name: 'Fleet Step', text: '+13% movement speed' },
     { id: 'focus', icon: '✦', name: 'Deep Focus', text: 'Abilities recharge 14% faster' }
   ];
+  const MOVEMENT_KEY_CODES = { KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd' };
   const app = document.querySelector('#app');
   const toastNode = document.querySelector('#toast');
+  const MAX_CANVAS_DPR = 1.25;
+  const SNAPSHOT_DELAY_MS = 110;
   const storedPlayer = localStorage.getItem('slime-slayer-player-id');
   const playerId = storedPlayer || (crypto.randomUUID ? crypto.randomUUID() : `p-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   localStorage.setItem('slime-slayer-player-id', playerId);
@@ -32,8 +35,15 @@
   let keys = new Set();
   let moveVector = { x: 0, y: 0 };
   let lastMoveAt = 0;
+  let inputErrorShown = false;
+  let legacyInputFallback = false;
   let soundContext = null;
   let lastSeenPhase = '';
+  let snapshots = [];
+  let canvasResizeObserver = null;
+  let lastMinimapRenderAt = 0;
+  let overlayStateKey = '';
+  const slimeSpriteCache = new Map();
 
   function esc(value) {
     return String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
@@ -160,7 +170,7 @@
   }
   function startPolling() {
     clearInterval(pollHandle);
-    pollHandle = setInterval(poll, 420);
+    pollHandle = setInterval(poll, 100);
     poll();
   }
   async function poll() {
@@ -178,6 +188,7 @@
   function acceptRoom(room) {
     const previousStatus = currentRoom?.status;
     const previousPhase = currentRoom?.game?.phase;
+    recordSnapshot(room);
     currentRoom = room;
     if (room.status === 'playing') {
       if (currentScreen !== 'game') enterGame();
@@ -192,7 +203,35 @@
     const phase = room.game?.phase || '';
     if (phase && phase !== previousPhase && phase === 'upgrade') sound(590, .12, 'triangle');
   }
-
+  function recordSnapshot(room) {
+    const game = room.game;
+    snapshots.push({
+      at: performance.now(), room,
+      players: new Map((room.players || []).map(player => [player.id, player])),
+      enemies: new Map((game?.enemies || []).map(enemy => [enemy.id, enemy])),
+      projectiles: new Map((game?.projectiles || []).map(projectile => [projectile.id, projectile]))
+    });
+    if (snapshots.length > 8) snapshots.shift();
+  }
+  function renderFrame() {
+    if (!snapshots.length) return { room: currentRoom, before: null, alpha: 1 };
+    const target = performance.now() - SNAPSHOT_DELAY_MS;
+    let before = snapshots[0];
+    let after = snapshots[snapshots.length - 1];
+    if (target < before.at) after = before;
+    else {
+      for (let i = 1; i < snapshots.length; i++) {
+        if (snapshots[i].at >= target) {
+          before = snapshots[i - 1];
+          after = snapshots[i];
+          break;
+        }
+        before = snapshots[i];
+      }
+    }
+    const alpha = after.at > before.at ? Math.max(0, Math.min(1, (target - before.at) / (after.at - before.at))) : 1;
+    return { room: after.room, before, alpha };
+  }
   function renderLobby(initial = false) {
     setScreen('lobby');
     lobbyKey = '';
@@ -250,6 +289,7 @@
   function enterGame() {
     if (!currentRoom) return;
     setScreen('game');
+    overlayStateKey = '';
     lastSeenPhase = currentRoom.game?.phase || '';
     app.innerHTML = `
       <section class="game-screen">
@@ -257,11 +297,11 @@
           <div class="game-brand">SLIME SLAYER</div>
           <div class="wave-block"><div class="wave-label">Coliseum run</div><div class="wave-value" id="wave-label">Wave 1 / 10</div></div>
           <div class="progress-wrap"><div class="progress-label"><span id="progress-copy">The slimes are gathering</span><span id="enemy-count">0 enemies</span></div><div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div></div>
-          <div class="top-stats"><span>☠ <strong id="kill-count">0</strong></span><span class="score-stat">✦ <strong id="team-score">0</strong></span></div>
+          <div class="top-stats"><span id="fps-counter" title="Rendered frames per second">-- FPS</span><span>☠ <strong id="kill-count">0</strong></span><span class="score-stat">✦ <strong id="team-score">0</strong></span></div>
           <button class="icon-btn" title="Settings and controls" data-action="help">?</button>
         </header>
         <div class="game-body">
-          <div class="arena-wrap"><canvas id="arena" aria-label="Top-down slime arena"></canvas>
+          <div class="arena-wrap"><canvas id="arena-background" aria-hidden="true"></canvas><canvas id="arena" aria-label="Top-down slime arena"></canvas>
             <div class="mobile-pad" id="mobile-pad" aria-label="Move your champion"></div>
             <button class="mobile-ability" id="mobile-ability">ABILITY</button>
             <div class="overlay" id="game-overlay" hidden></div>
@@ -285,17 +325,42 @@
   function startDrawing() {
     stopDrawing();
     const canvas = document.querySelector('#arena');
-    if (!canvas) return;
+    const background = document.querySelector('#arena-background');
+    if (!canvas || !background) return;
     const ctx = canvas.getContext('2d');
+    const backgroundCtx = background.getContext('2d');
     let lastW = 0, lastH = 0;
-    const draw = () => {
+    let cssWidth = canvas.getBoundingClientRect().width;
+    let cssHeight = canvas.getBoundingClientRect().height;
+    canvasResizeObserver = new ResizeObserver(entries => {
+      const rect = entries[0]?.contentRect;
+      if (rect) { cssWidth = rect.width; cssHeight = rect.height; }
+    });
+    canvasResizeObserver.observe(canvas);
+    let frameCount = 0;
+    let fpsWindowStart = performance.now();
+    const draw = (time = performance.now()) => {
       if (!canvas.isConnected) { stopDrawing(); return; }
-      const rect = canvas.getBoundingClientRect();
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
-      const w = Math.max(1, Math.floor(rect.width * dpr));
-      const h = Math.max(1, Math.floor(rect.height * dpr));
-      if (w !== lastW || h !== lastH) { canvas.width = w; canvas.height = h; lastW = w; lastH = h; }
-      drawArena(ctx, w, h);
+      const dpr = Math.min(MAX_CANVAS_DPR, window.devicePixelRatio || 1);
+      const w = Math.max(1, Math.floor(cssWidth * dpr));
+      const h = Math.max(1, Math.floor(cssHeight * dpr));
+      if (w !== lastW || h !== lastH) {
+        canvas.width = w; canvas.height = h; lastW = w; lastH = h;
+        background.width = w; background.height = h;
+        drawArenaBackground(backgroundCtx, w, h);
+      }
+      drawArena(ctx, w, h, renderFrame());
+      frameCount++;
+      if (time - fpsWindowStart >= 500) {
+        const fpsNode = document.querySelector('#fps-counter');
+        if (fpsNode) {
+          const fps = Math.round(frameCount * 1000 / (time - fpsWindowStart));
+          fpsNode.textContent = `${fps} FPS`;
+          fpsNode.classList.toggle('fps-low', fps < 55);
+        }
+        frameCount = 0;
+        fpsWindowStart = time;
+      }
       drawHandle = requestAnimationFrame(draw);
     };
     draw();
@@ -303,10 +368,10 @@
   function stopDrawing() {
     if (drawHandle) cancelAnimationFrame(drawHandle);
     drawHandle = null;
+    canvasResizeObserver?.disconnect();
+    canvasResizeObserver = null;
   }
-  function drawArena(ctx, width, height) {
-    const room = currentRoom;
-    if (!room) return;
+  function drawArenaBackground(ctx, width, height) {
     const scale = Math.min(width / 1200, height / 760);
     const ox = (width - 1200 * scale) / 2;
     const oy = (height - 760 * scale) / 2;
@@ -340,14 +405,42 @@
     ctx.strokeStyle = 'rgba(230,192,139,.18)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(0, 0, 235, 145, 0, 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
     drawArenaPillars(ctx);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+  function drawArena(ctx, width, height, frame) {
+    const room = frame?.room || currentRoom;
+    if (!room) return;
+    const scale = Math.min(width / 1200, height / 760);
+    const ox = (width - 1200 * scale) / 2;
+    const oy = (height - 760 * scale) / 2;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+    ctx.setTransform(scale, 0, 0, scale, ox, oy);
     for (const effect of room.game?.effects || []) drawEffect(ctx, effect);
+    const alpha = frame?.alpha ?? 1;
+    const oldProjectiles = frame?.before?.projectiles;
     for (const projectile of room.game?.projectiles || []) {
+      const old = oldProjectiles?.get(projectile.id);
+      const x = old ? old.x + (projectile.x - old.x) * alpha : projectile.x;
+      const y = old ? old.y + (projectile.y - old.y) * alpha : projectile.y;
       ctx.save(); ctx.shadowBlur = 15; ctx.shadowColor = projectile.color || '#fff';
-      ctx.fillStyle = projectile.color || '#fff'; ctx.beginPath(); ctx.arc(projectile.x, projectile.y, projectile.radius || 6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = projectile.color || '#fff'; ctx.beginPath(); ctx.arc(x, y, projectile.radius || 6, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
     }
-    for (const enemy of room.game?.enemies || []) drawSlime(ctx, enemy);
-    for (const player of room.players || []) drawHero(ctx, player);
+    const oldEnemies = frame?.before?.enemies;
+    for (const enemy of room.game?.enemies || []) {
+      const old = oldEnemies?.get(enemy.id);
+      const x = old ? old.x + (enemy.x - old.x) * alpha : enemy.x;
+      const y = old ? old.y + (enemy.y - old.y) * alpha : enemy.y;
+      drawSlime(ctx, enemy, x, y);
+    }
+    const oldPlayers = frame?.before?.players;
+    for (const player of room.players || []) {
+      const old = oldPlayers?.get(player.id);
+      const x = old ? old.x + (player.x - old.x) * alpha : player.x;
+      const y = old ? old.y + (player.y - old.y) * alpha : player.y;
+      drawHero(ctx, player, x, y);
+    }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
   function drawArenaPillars(ctx) {
@@ -359,19 +452,37 @@
       ctx.strokeStyle = 'rgba(231,197,145,.25)'; ctx.lineWidth = 2; ctx.stroke();
     }
   }
-  function drawSlime(ctx, e) {
-    const r = e.size || 18;
-    ctx.save(); ctx.translate(e.x,e.y);
-    ctx.globalAlpha = e.stunnedUntil > Date.now() ? .65 : 1;
-    ctx.shadowColor = e.color; ctx.shadowBlur = e.type === 'king' ? 22 : 10;
-    const grad = ctx.createRadialGradient(-r*.28,-r*.35,2,0,0,r*1.25);
-    grad.addColorStop(0, lighten(e.color, .55)); grad.addColorStop(.42,e.color); grad.addColorStop(1, '#202027');
+  function slimeSprite(type, radius, color) {
+    const key = `${type}:${radius}:${color}`;
+    if (slimeSpriteCache.has(key)) return slimeSpriteCache.get(key);
+    const size = radius * 2 + 24;
+    const scale = 2;
+    const canvas = document.createElement('canvas');
+    canvas.width = size * scale; canvas.height = size * scale;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale); ctx.translate(size / 2, size / 2);
+    ctx.shadowColor = color; ctx.shadowBlur = type === 'king' ? 22 : 10;
+    const grad = ctx.createRadialGradient(-radius * .28, -radius * .35, 2, 0, 0, radius * 1.25);
+    grad.addColorStop(0, lighten(color, .55)); grad.addColorStop(.42, color); grad.addColorStop(1, '#202027');
     ctx.fillStyle = grad; ctx.beginPath();
-    ctx.moveTo(-r, r*.2); ctx.bezierCurveTo(-r*1.05,-r*.55,-r*.55,-r*1.08,0,-r*.95);
-    ctx.bezierCurveTo(r*.8,-r*1.12,r*1.12,-r*.28,r,r*.22); ctx.bezierCurveTo(r*.75,r*.9,-r*.7,r*.95,-r,r*.2); ctx.fill();
+    ctx.moveTo(-radius, radius * .2);
+    ctx.bezierCurveTo(-radius * 1.05, -radius * .55, -radius * .55, -radius * 1.08, 0, -radius * .95);
+    ctx.bezierCurveTo(radius * .8, -radius * 1.12, radius * 1.12, -radius * .28, radius, radius * .22);
+    ctx.bezierCurveTo(radius * .75, radius * .9, -radius * .7, radius * .95, -radius, radius * .2);
+    ctx.fill();
     ctx.shadowBlur = 0; ctx.fillStyle = '#201d26';
-    ctx.beginPath(); ctx.ellipse(-r*.31,-r*.05,Math.max(2,r*.12),Math.max(3,r*.18),0,0,Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(r*.3,-r*.05,Math.max(2,r*.12),Math.max(3,r*.18),0,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-radius * .31, -radius * .05, Math.max(2, radius * .12), Math.max(3, radius * .18), 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(radius * .3, -radius * .05, Math.max(2, radius * .12), Math.max(3, radius * .18), 0, 0, Math.PI * 2); ctx.fill();
+    const sprite = { canvas, size };
+    slimeSpriteCache.set(key, sprite);
+    return sprite;
+  }
+  function drawSlime(ctx, e, x = e.x, y = e.y) {
+    const r = e.size || 18;
+    const sprite = slimeSprite(e.type, r, e.color);
+    ctx.save(); ctx.translate(x, y);
+    ctx.globalAlpha = e.stunnedUntil > Date.now() ? .65 : 1;
+    ctx.drawImage(sprite.canvas, -sprite.size / 2, -sprite.size / 2, sprite.size, sprite.size);
     if (e.markedUntil > Date.now()) { ctx.strokeStyle='#fff4ce'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(0,0,r+5,0,Math.PI*2); ctx.stroke(); }
     if (e.hp < e.maxHp || e.type === 'king') {
       const bw = r*2.2; ctx.fillStyle='rgba(13,12,15,.8)'; ctx.fillRect(-bw/2,-r-11,bw,4);
@@ -380,9 +491,9 @@
     if (e.type==='king') { ctx.fillStyle='#f0d16f'; ctx.font='bold 15px Georgia'; ctx.textAlign='center'; ctx.fillText('♛',0,-r-14); }
     ctx.restore();
   }
-  function drawHero(ctx, p) {
+  function drawHero(ctx, p, x = p.x, y = p.y) {
     const h = hero(p.hero);
-    ctx.save(); ctx.translate(p.x,p.y);
+    ctx.save(); ctx.translate(x,y);
     if (!p.alive) { ctx.globalAlpha=.42; }
     ctx.shadowColor=h.color; ctx.shadowBlur=p.id===playerId?19:11;
     ctx.fillStyle='rgba(12,12,15,.5)'; ctx.beginPath(); ctx.ellipse(1,5,19,10,0,0,Math.PI*2); ctx.fill();
@@ -433,7 +544,9 @@
     const status=document.querySelector('#party-status');
     if(status) status.innerHTML=(currentRoom.players||[]).map(p=>`<div class="party-row"><div class="party-dot" style="color:${hero(p.hero).color}">${p.hero[0]}</div><span>${esc(p.name)}${p.id===playerId?' · you':''}</span><strong>${Math.max(0,Math.ceil(p.hp))}</strong><div class="hp-track"><div class="hp-fill" style="width:${p.maxHp?Math.max(0,p.hp/p.maxHp*100):0}%;background:${p.alive?'#79bb70':'#e76850'}"></div></div></div>`).join('');
     const mini=document.querySelector('#minimap');
-    if(mini) {
+    const now=performance.now();
+    if(mini && now-lastMinimapRenderAt>=200) {
+      lastMinimapRenderAt=now;
       mini.innerHTML='';
       for(const p of currentRoom.players||[]){const dot=document.createElement('span');dot.className='map-dot player';dot.style.color=hero(p.hero).color;dot.style.background=hero(p.hero).color;dot.style.left=`${p.x/1200*100}%`;dot.style.top=`${p.y/760*100}%`;mini.append(dot);}
       for(const e of g.enemies||[]){const dot=document.createElement('span');dot.className='map-dot enemy';dot.style.color=e.color;dot.style.background=e.color;dot.style.left=`${e.x/1200*100}%`;dot.style.top=`${e.y/760*100}%`;mini.append(dot);}
@@ -447,6 +560,9 @@
     const node=document.querySelector('#game-overlay');
     if(!node||!currentRoom?.game) return;
     const g=currentRoom.game; const self=getSelf();
+    const stateKey=`${g.phase}:${g.wave}:${Boolean(self?.upgradePicked)}:${g.result||''}`;
+    if(stateKey===overlayStateKey)return;
+    overlayStateKey=stateKey;
     if(g.phase==='upgrade') {
       node.hidden=false;
       if(self?.upgradePicked) {
@@ -471,10 +587,12 @@
       const cx=rect.left+rect.width/2,cy=rect.top+rect.height/2;
       let x=(event.clientX-cx)/43,y=(event.clientY-cy)/43;const len=Math.hypot(x,y);if(len>1){x/=len;y/=len;}
       moveVector={x,y};pad.classList.add('active');
+      pad.style.setProperty('--stick-x', `${x * 28}px`);
+      pad.style.setProperty('--stick-y', `${y * 28}px`);
     };
     pad.addEventListener('pointerdown',event=>{pad.setPointerCapture(event.pointerId);update(event);});
-    pad.addEventListener('pointermove',event=>{if(event.buttons)update(event);});
-    const release=()=>{moveVector={x:0,y:0};pad.classList.remove('active');};
+    pad.addEventListener('pointermove',event=>{if(pad.hasPointerCapture(event.pointerId))update(event);});
+    const release=()=>{moveVector={x:0,y:0};pad.classList.remove('active');pad.style.setProperty('--stick-x','0px');pad.style.setProperty('--stick-y','0px');};
     pad.addEventListener('pointerup',release);pad.addEventListener('pointercancel',release);
   }
   function startMovementLoop() {
@@ -487,17 +605,41 @@
       if(keys.has('ArrowUp')||keys.has('w'))y-=1;
       if(keys.has('ArrowDown')||keys.has('s'))y+=1;
       const length=Math.hypot(x,y);if(length>1){x/=length;y/=length;}
-      const now=Date.now();if(now-lastMoveAt<75)return;lastMoveAt=now;
-      fetch(`/api/rooms/${roomCode}/action`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({playerId,action:'move',x,y})}).catch(()=>{});
-    },65);
+      const now=Date.now();if(now-lastMoveAt<(legacyInputFallback?80:40))return;lastMoveAt=now;
+      sendMovement(x,y);
+    },35);
+  }
+  async function sendMovement(x,y) {
+    const body=JSON.stringify({playerId,x,y});
+    const options={method:'POST',headers:{'Content-Type':'application/json'},body};
+    try {
+      let response;
+      if(legacyInputFallback) {
+        response=await fetch(`/api/rooms/${roomCode}/action`,{...options,body:JSON.stringify({playerId,action:'move',x,y})});
+      } else {
+        response=await fetch(`/api/rooms/${roomCode}/input`,options);
+        if(response.status===404) {
+          // Keep movement working if an already-running server predates the lightweight input route.
+          if(!legacyInputFallback) showToast('Older server detected; using compatibility movement. Restart the server for the optimized route.');
+          legacyInputFallback=true;
+          response=await fetch(`/api/rooms/${roomCode}/action`,{...options,body:JSON.stringify({playerId,action:'move',x,y})});
+        }
+      }
+      if(!response.ok&&!inputErrorShown) {
+        inputErrorShown=true;
+        showToast(`Movement sync failed (${response.status}). Restart the game server and reload.`);
+      }
+    } catch {
+      if(!inputErrorShown) { inputErrorShown=true; showToast('Movement sync failed. Check that the game server is running.'); }
+    }
   }
   window.addEventListener('keydown',event=>{
-    const key=event.key.length===1?event.key.toLowerCase():event.key;
+    const key=MOVEMENT_KEY_CODES[event.code]||(event.key.length===1?event.key.toLowerCase():event.key);
     if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(key))event.preventDefault();
     if((key==='e'||key===' ')&&currentScreen==='game'&&!event.repeat){act('ability');return;}
     keys.add(key);
   });
-  window.addEventListener('keyup',event=>{const key=event.key.length===1?event.key.toLowerCase():event.key;keys.delete(key);});
+  window.addEventListener('keyup',event=>{const key=MOVEMENT_KEY_CODES[event.code]||(event.key.length===1?event.key.toLowerCase():event.key);keys.delete(key);});
   window.addEventListener('blur',()=>{keys.clear();moveVector={x:0,y:0};});
 
   function showSettings() {
