@@ -177,10 +177,35 @@
             <button class="mode-card" data-action="party"><span class="mode-symbol party-pawns" aria-hidden="true">♟♟♟♟</span><span class="mode-title">Party</span><span class="mode-caption">Multiplayer</span></button>
           </div>
           <footer class="menu-foot">Up to four players · WASD / arrows / drag to move · E / tap button to use your ability</footer>
+          <button class="btn quiet credits-trigger" type="button" data-action="credits">Credits</button>
         </div>
       </section>`;
     app.querySelector('[data-action="solo"]').addEventListener('click', () => { setHero(null); renderSoloSelect(); });
     app.querySelector('[data-action="party"]').addEventListener('click', renderPartyChoice);
+    app.querySelector('[data-action="credits"]').addEventListener('click', renderCredits);
+    app.querySelector('[data-action="settings"]').addEventListener('click', showSettings);
+  }
+
+  function renderCredits() {
+    setScreen('credits');
+    app.innerHTML = `<section class="screen menu-screen credits-screen">${gearButton()}<div class="menu-wrap">
+      <button class="back-link" data-action="back">← Back</button>
+      <header class="brand compact-brand"><div class="brand-mark">✦</div><h1>CREDITS</h1><div class="subtitle">Slime Slayer</div></header>
+      <article class="credits-panel">
+        <section class="credits-section"><h2>GAME DESIGN &amp; CREATIVE DIRECTION</h2><h3>Gavin Heard</h3><ul>
+          <li>Lead Game Designer</li><li>Creative Director</li><li>Game Concept &amp; Original Vision</li><li>Creative Planning &amp; Development</li><li>Gameplay Mechanics &amp; Rules Design</li><li>Project Direction</li>
+        </ul></section>
+        <section class="credits-section"><h2>DEVELOPMENT &amp; ART</h2><h3>ChatGPT6-Luna</h3><ul>
+          <li>AI Programming Assistant</li><li>Game Systems &amp; Technical Development</li><li>Multiplayer Systems &amp; Synchronization</li><li>Visual Design &amp; Art Direction</li><li>Digital Art &amp; Creative Asset Development</li><li>Technical Problem-Solving</li>
+        </ul></section>
+        <section class="credits-section credits-acknowledgment"><h2>SPECIAL ACKNOWLEDGMENT</h2>
+          <p>Created in collaboration with ChatGPT as an entry for the <strong>ChatGPT Create a Multiplayer Game Competition</strong>, hosted through <strong>Handshake</strong>.</p>
+          <p class="credits-signoff"><strong>Designed by Gavin Heard. Developed with AI assistance from ChatGPT6-Luna.</strong></p>
+        </section>
+        <p class="credits-thanks"><strong><em>Thank you for playing &lt;3.</em></strong></p>
+      </article>
+    </div></section>`;
+    app.querySelector('[data-action="back"]').addEventListener('click', renderMenu);
     app.querySelector('[data-action="settings"]').addEventListener('click', showSettings);
   }
 
