@@ -16,8 +16,9 @@ Open <http://localhost:3000>. To play with another device on the same Wi-Fi, ope
 
 ## Included in this demo
 
-- Solo play and four-player co-op rooms with five-character join codes.
-- Ready-up lobby, hero selection, host handoff, and reconnect using the browser's saved player identity.
+- A simple Solo / Party opening screen. Solo leads to hero selection; Party lets the host name a room or lets other players join with a five-character code.
+- A four-seat ready-up lobby with a player name field, left/right hero browsing, blank initial selection, Random selection, and server-enforced hero reservations.
+- Host handoff and reconnect using the browser's saved player identity.
 - Server-owned player movement, attacks, enemy behavior, health, wave progression, upgrades, score, and win/loss state.
 - Ten waves that follow the slime lineup in the design outline, with a King Slime on wave ten.
 - Automatic hero attacks, four abilities, four between-wave upgrades, co-op revival between waves, and no friendly fire.
@@ -44,4 +45,4 @@ For a public competition link, deploy the folder as a Node web service with `npm
 
 ## Art files
 
-Character portraits are served from the existing root-level images. `Gavrilta` uses `Gavrilla Art.png` as supplied. The hand-drawn canvas sprites and effects are temporary placeholders; the hero portraits and visual colors are defined in `public/app.js` and `server.js`, while the scene layout is in `public/style.css`.
+Character portraits are served from the `Art` folder. `Gavrilta` uses `Gavrilla character art.png` as supplied. The hand-drawn canvas sprites and effects are temporary placeholders; the hero portraits and visual colors are defined in `public/app.js` and `server.js`, while the scene layout is in `public/style.css`.

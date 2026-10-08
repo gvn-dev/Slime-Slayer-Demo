@@ -11,10 +11,10 @@ const WORLD = { width: 1200, height: 760 };
 const ROOM_TTL = 30 * 60 * 1000;
 const PLAYER_OFFLINE_MS = 9000;
 const CHARACTER_ART = {
-  Ravela: 'Ravela Art.png',
-  Fjord: 'Fjord Art.png',
-  Aram: 'Aram Art.png',
-  Gavrilta: 'Gavrilla Art.png'
+  Ravela: 'Ravela character art.png',
+  Fjord: 'Fjord character art.png',
+  Aram: 'Aram character art.png',
+  Gavrilta: 'Gavrilla character art.png'
 };
 
 const HEROES = {
@@ -51,6 +51,10 @@ function cleanName(value) {
   const name = String(value || '').trim().replace(/[<>]/g, '').slice(0, 18);
   return name || 'Slime Slayer';
 }
+function cleanPartyName(value) {
+  const name = String(value || '').trim().replace(/[<>]/g, '').slice(0, 28);
+  return name || 'Slime Slayer Party';
+}
 function newId() { return randomUUID(); }
 function makeCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -60,9 +64,10 @@ function makeCode() {
   return code;
 }
 function makePlayer(id, name, hero) {
-  const stats = HEROES[hero] || HEROES.Ravela;
+  const chosenHero = HEROES[hero] ? hero : hero === 'Random' ? 'Random' : null;
+  const stats = HEROES[chosenHero] || HEROES.Ravela;
   return {
-    id, name: cleanName(name), hero: HEROES[hero] ? hero : 'Ravela', ready: false,
+    id, name: cleanName(name), hero: chosenHero, ready: false,
     x: WORLD.width / 2, y: WORLD.height / 2, hp: stats.hp, maxHp: stats.hp,
     alive: true, score: 0, damage: 0, kills: 0, move: { x: 0, y: 0 }, facing: { x: 1, y: 0 },
     attackCooldown: 0, abilityCooldown: 0, stunnedUntil: 0, rootedUntil: 0, markedUntil: 0,
@@ -105,7 +110,7 @@ function newGame() {
 function publicRoom(room, viewerId) {
   const now = Date.now();
   return {
-    code: room.code, mode: room.mode, status: room.status, hostId: room.hostId,
+    code: room.code, mode: room.mode, partyName: room.partyName, status: room.status, hostId: room.hostId,
     isHost: room.hostId === viewerId,
     players: room.players.map(p => ({
       id: p.id, name: p.name, hero: p.hero, ready: p.ready, online: isOnline(p, now),
@@ -216,7 +221,18 @@ function nearestEnemy(game, x, y, range = Infinity) {
 }
 function canStart(room) {
   const onlinePlayers = room.players.filter(p => isOnline(p));
-  return onlinePlayers.length > 0 && onlinePlayers.every(p => p.ready);
+  return onlinePlayers.length > 0 && onlinePlayers.every(p => p.ready && p.hero);
+}
+function assignRandomHeroes(room) {
+  const claimed = new Set(room.players.map(p => p.hero).filter(hero => HEROES[hero]));
+  const available = Object.keys(HEROES).filter(hero => !claimed.has(hero));
+  for (const player of room.players) {
+    if (player.hero && player.hero !== 'Random') continue;
+    const index = Math.floor(Math.random() * available.length);
+    player.hero = available.splice(index, 1)[0];
+    player.maxHp = HEROES[player.hero].hp;
+    player.hp = player.maxHp;
+  }
 }
 function beginWave(room, wave) {
   const game = room.game;
@@ -477,7 +493,7 @@ function serveStatic(req, res, pathname) {
     const key = decodeURIComponent(pathname.slice(5));
     const allowed = Object.values(CHARACTER_ART);
     if (!allowed.includes(key)) return send(res, 404, { error: 'Not found' });
-    file = path.join(ROOT, key);
+    file = path.join(ROOT, 'Art', key);
   } else return send(res, 404, { error: 'Not found' });
   const ext = path.extname(file).toLowerCase();
   const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png' };
@@ -499,7 +515,7 @@ const server = http.createServer(async (req, res) => {
       const mode = body.mode === 'solo' ? 'solo' : 'coop';
       const playerId = String(body.playerId || newId()).slice(0, 80);
       const code = makeCode();
-      const room = { code, mode, status: 'lobby', hostId: playerId, players: [], game: null, lastActivity: Date.now() };
+      const room = { code, mode, partyName: mode === 'coop' ? cleanPartyName(body.partyName) : '', status: 'lobby', hostId: playerId, players: [], game: null, lastActivity: Date.now() };
       rooms.set(code, room);
       const player = addPlayer(room, playerId, body.name, body.hero);
       if (mode === 'solo') player.ready = true;
@@ -563,16 +579,23 @@ const server = http.createServer(async (req, res) => {
         room.lastActivity = Date.now();
         const action = String(body.action || '');
         if (action === 'character' && room.status === 'lobby') {
-          if (!HEROES[body.value]) return send(res, 400, { error: 'Unknown hero.' });
-          player.hero = body.value;
-          player.maxHp = HEROES[player.hero].hp;
+          const choice = body.value === '' || body.value == null ? null : body.value;
+          if (choice !== null && choice !== 'Random' && !HEROES[choice]) return send(res, 400, { error: 'Unknown hero.' });
+          if (HEROES[choice] && room.players.some(other => other.id !== player.id && other.hero === choice)) {
+            return send(res, 409, { error: `${choice} has already been chosen by another player.` });
+          }
+          player.hero = choice;
+          player.maxHp = HEROES[player.hero]?.hp || HEROES.Ravela.hp;
           player.hp = player.maxHp;
           player.ready = false;
+        } else if (action === 'name' && room.status === 'lobby') {
+          player.name = cleanName(body.value);
         } else if (action === 'ready' && room.status === 'lobby') {
           player.ready = Boolean(body.value);
         } else if (action === 'start' && room.status === 'lobby') {
           if (room.hostId !== player.id) return send(res, 403, { error: 'Only the host can start the run.' });
-          if (!canStart(room)) return send(res, 409, { error: 'Every online player must be ready first.' });
+          if (!canStart(room)) return send(res, 409, { error: 'Every online player must choose a character and ready up first.' });
+          assignRandomHeroes(room);
           room.status = 'playing';
           room.game = newGame();
           room.game.roomMode = room.mode;

@@ -2,10 +2,10 @@
   'use strict';
 
   const HEROES = [
-    { id: 'Ravela', role: 'Glass cannon · single-target archer', flavor: 'A deadly mark turns one clean shot into a finishing blow.', color: '#d8c7ef', art: 'Ravela Art.png' },
-    { id: 'Fjord', role: 'Armored tank · close-range cleave', flavor: 'Slow, sturdy, and happiest surrounded by enemies.', color: '#ec9b4b', art: 'Fjord Art.png' },
-    { id: 'Aram', role: 'Balanced duelist · parry and counter', flavor: 'A measured blade with a chance to stun attackers.', color: '#a4c5a1', art: 'Aram Art.png' },
-    { id: 'Gavrilta', role: 'Control mage · poison and roots', flavor: 'Green magic slows a crowd and wears it down over time.', color: '#82d66e', art: 'Gavrilla Art.png' }
+    { id: 'Ravela', role: 'Glass cannon · single-target archer', flavor: 'A deadly mark turns one clean shot into a finishing blow.', color: '#d8c7ef', art: 'Ravela character art.png' },
+    { id: 'Fjord', role: 'Armored tank · close-range cleave', flavor: 'Slow, sturdy, and happiest surrounded by enemies.', color: '#ec9b4b', art: 'Fjord character art.png' },
+    { id: 'Aram', role: 'Balanced duelist · parry and counter', flavor: 'A measured blade with a chance to stun attackers.', color: '#a4c5a1', art: 'Aram character art.png' },
+    { id: 'Gavrilta', role: 'Control mage · poison and roots', flavor: 'Green magic slows a crowd and wears it down over time.', color: '#82d66e', art: 'Gavrilla character art.png' }
   ];
   const UPGRADES = [
     { id: 'power', icon: '⚔', name: 'Keen Edge', text: '+20% attack damage' },
@@ -17,16 +17,20 @@
   const app = document.querySelector('#app');
   const toastNode = document.querySelector('#toast');
   const MAX_CANVAS_DPR = 1.25;
-  const SNAPSHOT_DELAY_MS = 110;
+  const SNAPSHOT_DELAY_MS = 180;
   const storedPlayer = localStorage.getItem('slime-slayer-player-id');
   const playerId = storedPlayer || (crypto.randomUUID ? crypto.randomUUID() : `p-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   localStorage.setItem('slime-slayer-player-id', playerId);
   let currentRoom = null;
   let currentScreen = 'menu';
-  let selectedHero = localStorage.getItem('slime-slayer-hero') || 'Ravela';
+  let selectedHero = null;
   let playerName = localStorage.getItem('slime-slayer-name') || '';
   let roomCode = localStorage.getItem('slime-slayer-room') || '';
   let lobbyKey = '';
+  let pendingLobbyHeroChoice = null;
+  let lobbyHeroSyncing = false;
+  let lobbyHeroChoiceVersion = 0;
+  let lobbyHeroActionAckAt = 0;
   let pollHandle = null;
   let drawHandle = null;
   let polling = false;
@@ -42,6 +46,8 @@
   let snapshots = [];
   let canvasResizeObserver = null;
   let lastMinimapRenderAt = 0;
+  let lastPartyStatusMarkup = '';
+  let minimapDots = new Map();
   let overlayStateKey = '';
   const slimeSpriteCache = new Map();
 
@@ -75,8 +81,8 @@
   }
   function setHero(value) {
     selectedHero = value;
-    localStorage.setItem('slime-slayer-hero', value);
   }
+  function gearButton() { return '<button class="gear-btn" type="button" title="Settings and controls" aria-label="Settings and controls" data-action="settings">⚙</button>'; }
   function sound(frequency = 440, duration = 0.08, type = 'sine') {
     if (volume <= 0) return;
     try {
@@ -99,45 +105,106 @@
   function renderMenu() {
     setScreen('menu');
     app.innerHTML = `
-      <section class="screen menu-screen">
+      <section class="screen menu-screen intro-screen">
+        ${gearButton()}
         <div class="menu-wrap">
           <header class="brand">
             <div class="brand-mark">✦</div>
             <h1>SLIME SLAYER</h1>
-            <div class="subtitle">Coliseum Run · Cooperative Roguelike</div>
+            <div class="subtitle">Coliseum Run · Roguelike</div>
           </header>
           <p class="intro">Hold the old arena against ten waves of slime. Choose a champion, survive together, and grow stronger after every round.</p>
-          <div class="section-heading"><h2>Choose your champion</h2><div class="small muted">Each hero has a different attack and a unique ability.</div></div>
-          <div class="hero-grid">${HEROES.map(h => `
-            <button class="hero-card ${selectedHero === h.id ? 'selected' : ''}" data-hero="${h.id}" aria-pressed="${selectedHero === h.id}">
-              <div class="portrait"><img src="/art/${encodeURIComponent(h.art)}" alt="${h.id} character art"></div>
-              <div class="hero-meta"><div class="hero-name"><span>${h.id}</span><span style="color:${h.color}">✦</span></div><div class="hero-role">${h.role}</div><div class="hero-flair">${h.flavor}</div></div>
-            </button>`).join('')}
+          <div class="mode-select">
+            <button class="mode-card" data-action="solo"><span class="mode-symbol">⚔</span><span class="mode-title">Solo</span><span class="mode-caption">Singleplayer</span></button>
+            <button class="mode-card" data-action="party"><span class="mode-symbol">♟♟</span><span class="mode-title">Party</span><span class="mode-caption">Multiplayer</span></button>
           </div>
-          <div class="name-row"><label for="player-name">Adventurer name</label><input id="player-name" class="text-input" maxlength="18" placeholder="Slime Slayer" value="${esc(playerName)}"></div>
-          <div class="action-row">
-            <button class="btn" data-action="solo">Enter alone</button>
-            <button class="btn secondary" data-action="create">Create co-op room</button>
-            <span class="join-form"><input id="join-code" class="text-input code-input" maxlength="5" placeholder="ROOM CODE" aria-label="Room code"><button class="btn quiet" data-action="join">Join room</button></span>
-          </div>
-          <div class="action-row" style="margin-top:12px"><button class="btn quiet" data-action="settings">Settings &amp; controls</button></div>
           <footer class="menu-foot">Up to four champions · No friendly fire · WASD / arrows to move · E to use your ability</footer>
         </div>
       </section>`;
-    app.querySelectorAll('[data-hero]').forEach(button => button.addEventListener('click', () => { setHero(button.dataset.hero); renderMenu(); }));
-    app.querySelector('#player-name').addEventListener('input', event => persistName(event.target.value));
-    app.querySelector('#player-name').addEventListener('change', event => persistName(event.target.value));
-    app.querySelector('[data-action="solo"]').addEventListener('click', () => createRoom('solo'));
-    app.querySelector('[data-action="create"]').addEventListener('click', () => createRoom('coop'));
-    app.querySelector('[data-action="join"]').addEventListener('click', () => joinRoom(app.querySelector('#join-code').value));
-    app.querySelector('#join-code').addEventListener('keydown', event => { if (event.key === 'Enter') joinRoom(event.target.value); });
+    app.querySelector('[data-action="solo"]').addEventListener('click', () => { setHero(null); renderSoloSelect(); });
+    app.querySelector('[data-action="party"]').addEventListener('click', renderPartyChoice);
     app.querySelector('[data-action="settings"]').addEventListener('click', showSettings);
   }
 
-  async function createRoom(mode) {
-    persistName(app.querySelector('#player-name')?.value || playerName);
+  function renderPartyChoice() {
+    setScreen('party-choice');
+    app.innerHTML = `<section class="screen menu-screen sub-screen">${gearButton()}<div class="menu-wrap">
+      <button class="back-link" data-action="back">← Back</button>
+      <header class="brand compact-brand"><div class="brand-mark">✦</div><h1>PARTY</h1><div class="subtitle">Play together</div></header>
+      <p class="intro">Create a party and invite friends with its room code, or join a party that is already waiting.</p>
+      <div class="mode-select party-choice-grid"><button class="mode-card" data-action="create"><span class="mode-symbol">＋</span><span class="mode-title">Create a party</span><span class="mode-caption">Name your party and invite others</span></button>
+      <button class="mode-card" data-action="join"><span class="mode-symbol">⌕</span><span class="mode-title">Join a party</span><span class="mode-caption">Enter a friend's five-character code</span></button></div>
+    </div></section>`;
+    app.querySelector('[data-action="back"]').addEventListener('click', renderMenu);
+    app.querySelector('[data-action="create"]').addEventListener('click', () => showPartyDialog('create'));
+    app.querySelector('[data-action="join"]').addEventListener('click', () => showPartyDialog('join'));
+    app.querySelector('[data-action="settings"]').addEventListener('click', showSettings);
+  }
+
+  function showPartyDialog(kind) {
+    const creating = kind === 'create';
+    const modal = document.createElement('div');
+    modal.className = 'overlay dialog-overlay';
+    modal.id = 'party-dialog';
+    modal.innerHTML = `<form class="overlay-card party-dialog" id="party-dialog-form"><div class="eyebrow">${creating ? 'New party' : 'Join a party'}</div>
+      <h2>${creating ? 'Name your party' : 'Enter the party code'}</h2>
+      <p class="small muted">${creating ? 'Your friends can join with the code shown in the lobby.' : 'Ask the party host for the five-character room code.'}</p>
+      <label class="dialog-label" for="party-dialog-input">${creating ? 'Party name' : 'Party code'}</label>
+      <input class="text-input dialog-input ${creating ? '' : 'code-input'}" id="party-dialog-input" maxlength="${creating ? 28 : 5}" placeholder="${creating ? 'The Slime Slayers' : 'ABCDE'}" ${creating ? 'required' : 'required autocomplete="off"'}>
+      <div class="dialog-actions"><button class="btn quiet" type="button" data-action="cancel">Cancel</button><button class="btn" type="submit">${creating ? 'Create party' : 'Join party'}</button></div></form>`;
+    document.body.append(modal);
+    const input = modal.querySelector('input');
+    input.focus();
+    if (!creating) input.addEventListener('input', () => { input.value = input.value.replace(/[^a-z0-9]/gi, '').toUpperCase().slice(0, 5); });
+    modal.querySelector('[data-action="cancel"]').addEventListener('click', () => modal.remove());
+    modal.addEventListener('click', event => { if (event.target === modal) modal.remove(); });
+    modal.addEventListener('keydown', event => { if (event.key === 'Escape') modal.remove(); });
+    modal.querySelector('form').addEventListener('submit', event => {
+      event.preventDefault();
+      const value = input.value.trim();
+      if (!value) { input.focus(); return; }
+      modal.remove();
+      if (creating) createRoom('coop', value);
+      else joinRoom(value);
+    });
+  }
+
+  function renderSoloSelect() {
+    setScreen('solo-select');
+    app.innerHTML = `<section class="screen solo-screen">${gearButton()}<div class="solo-wrap">
+      <button class="back-link" data-action="back">← Back</button>
+      <header class="brand compact-brand"><div class="brand-mark">✦</div><h1>CHOOSE YOUR HERO</h1><div class="subtitle">Solo challenge</div></header>
+      <p class="intro">Pick a champion for your ten-wave run. Each hero brings a different weapon and ability.</p>
+      <div class="solo-hero-grid">${HEROES.map(h => heroCard(h, false)).join('')}</div>
+      <div class="solo-specials"><button class="special-choice ${selectedHero === 'Random' ? 'selected' : ''}" data-select-hero="Random"><span class="random-mark">?</span><span><strong>Random</strong><small>Let fate choose your champion</small></span></button></div>
+      <div class="solo-bottom"><label class="sr-only" for="solo-player-name">Your name</label><input id="solo-player-name" class="text-input solo-name" maxlength="18" placeholder="Your name" value="${esc(playerName)}">
+      <button class="btn" data-action="begin" ${selectedHero ? '' : 'disabled'}>Enter the arena</button></div>
+    </div></section>`;
+    app.querySelector('[data-action="back"]').addEventListener('click', renderMenu);
+    app.querySelector('[data-action="settings"]').addEventListener('click', showSettings);
+    app.querySelector('#solo-player-name').addEventListener('input', event => persistName(event.target.value));
+    app.querySelectorAll('[data-select-hero]').forEach(button => button.addEventListener('click', () => { setHero(button.dataset.selectHero || null); renderSoloSelectKeepName(); }));
+    app.querySelector('[data-action="begin"]').addEventListener('click', () => {
+      if (!selectedHero) return;
+      persistName(app.querySelector('#solo-player-name')?.value || playerName);
+      createRoom('solo');
+    });
+  }
+  function heroCard(h, compact = false, selected = selectedHero === h.id) {
+    return `<button class="hero-card ${compact ? 'compact-hero-card' : ''} ${selected ? 'selected' : ''}" data-select-hero="${h.id}" aria-pressed="${selected}">
+      <div class="portrait"><img src="/art/${encodeURIComponent(h.art)}" alt="${h.id} character art"></div>
+      <div class="hero-meta"><div class="hero-name"><span>${h.id}</span><span style="color:${h.color}">✦</span></div><div class="hero-role">${h.role}</div><div class="hero-flair">${h.flavor}</div></div></button>`;
+  }
+  function renderSoloSelectKeepName() {
+    const name = app.querySelector('#solo-player-name')?.value || playerName;
+    persistName(name);
+    renderSoloSelect();
+  }
+
+  async function createRoom(mode, partyName = '') {
+    persistName(app.querySelector('#solo-player-name')?.value || playerName);
     try {
-      const result = await api('/api/rooms', { playerId, name: playerName, hero: selectedHero, mode });
+      const result = await api('/api/rooms', { playerId, name: playerName, hero: mode === 'solo' ? selectedHero : null, partyName, mode });
       currentRoom = result.room;
       roomCode = currentRoom.code;
       localStorage.setItem('slime-slayer-room', roomCode);
@@ -150,9 +217,8 @@
   async function joinRoom(code) {
     const normalized = String(code || '').replace(/[^a-z0-9]/gi, '').toUpperCase().slice(0, 5);
     if (normalized.length !== 5) { showToast('Enter the five-character room code.'); return; }
-    persistName(app.querySelector('#player-name')?.value || playerName);
     try {
-      const result = await api(`/api/rooms/${normalized}/join`, { playerId, name: playerName, hero: selectedHero });
+      const result = await api(`/api/rooms/${normalized}/join`, { playerId, name: playerName, hero: null });
       currentRoom = result.room;
       roomCode = currentRoom.code;
       localStorage.setItem('slime-slayer-room', roomCode);
@@ -176,18 +242,28 @@
   async function poll() {
     if (polling || !roomCode || !playerId) return;
     polling = true;
+    const pollStartedAt = performance.now();
     try {
       const result = await api(`/api/rooms/${roomCode}?playerId=${encodeURIComponent(playerId)}`, null, 'GET');
-      acceptRoom(result.room);
+      // A GET that began before our character action was acknowledged may contain
+      // the previous hero. Keep the immediate local choice until a later GET sees it.
+      const preserveLobbyHero = currentScreen === 'lobby' && pollStartedAt < lobbyHeroActionAckAt;
+      acceptRoom(result.room, preserveLobbyHero);
     } catch (error) {
       clearInterval(pollHandle);
       if (currentScreen !== 'menu') { localStorage.removeItem('slime-slayer-room'); roomCode = ''; currentRoom = null; renderMenu(); }
       showToast(error.message || 'Room connection lost.');
     } finally { polling = false; }
   }
-  function acceptRoom(room) {
+  function acceptRoom(room, preserveLobbyHero = false) {
     const previousStatus = currentRoom?.status;
     const previousPhase = currentRoom?.game?.phase;
+    if ((pendingLobbyHeroChoice || preserveLobbyHero) && room.status === 'lobby') {
+      const optimisticChoice = pendingLobbyHeroChoice ? pendingLobbyHeroChoice.choice : getSelf()?.hero;
+      room = { ...room, players: room.players.map(player => player.id === playerId
+        ? { ...player, hero: optimisticChoice, ready: false }
+        : player) };
+    }
     recordSnapshot(room);
     currentRoom = room;
     if (room.status === 'playing') {
@@ -235,7 +311,8 @@
   function renderLobby(initial = false) {
     setScreen('lobby');
     lobbyKey = '';
-    app.innerHTML = `<section class="screen lobby-screen"><div class="lobby-panel" id="lobby-panel"></div></section>`;
+    app.innerHTML = `<section class="screen lobby-screen">${gearButton()}<div class="lobby-panel" id="lobby-panel"></div></section>`;
+    app.querySelector('[data-action="settings"]').addEventListener('click', showSettings);
     updateLobby(true);
   }
   function lobbySignature() {
@@ -254,25 +331,130 @@
     if (!panel) return;
     const slots = Array.from({ length: 4 }, (_, index) => {
       const p = currentRoom.players[index];
-      if (!p) return `<div class="player-slot"><div class="party-dot">＋</div><div><div class="player-name">Open seat</div><div class="player-class">Share the room code</div></div><div class="slot-status">Waiting</div></div>`;
-      const h = hero(p.hero);
-      return `<div class="player-slot"><img src="/art/${encodeURIComponent(h.art)}" alt=""><div><div class="player-name">${esc(p.name)}${p.id === currentRoom.hostId ? ' <span style="color:#e8b761">· host</span>' : ''}</div><div class="player-class">${h.id} · ${p.online ? 'Connected' : 'Reconnecting…'}</div></div><div class="slot-status ${p.ready ? 'ready' : ''}">${p.ready ? 'READY' : 'Choosing'}</div></div>`;
+      if (!p) return `<article class="party-slot vacant-slot"><div class="slot-heading"><span>PLAYER ${index + 1}</span><span>OPEN</span></div><div class="slot-portrait empty-portrait"><span>＋</span></div><div class="vacant-title">Open seat</div><div class="vacant-copy">Share your party code<br>to invite a player</div><div class="slot-status">Waiting to join</div></article>`;
+      const isSelf = p.id === playerId;
+      const h = HEROES.find(character => character.id === p.hero);
+      const heroFace = h
+        ? `<img class="slot-portrait" src="/art/${encodeURIComponent(h.art)}" alt="${esc(h.id)} character art">`
+        : `<div class="slot-portrait empty-portrait ${p.hero === 'Random' ? 'random-portrait' : ''}"><span>${p.hero === 'Random' ? '?' : '＋'}</span></div>`;
+      const nameControl = isSelf
+        ? `<label class="name-input-label" for="lobby-player-name">Your name</label><input id="lobby-player-name" class="text-input lobby-name-input" maxlength="18" value="${esc(p.name)}" aria-label="Your player name">`
+        : `<div class="slot-player-name">${esc(p.name)}</div>`;
+      let selector = '';
+      if (isSelf) {
+        selector = `<div class="character-selector">
+          <button class="character-arrow" type="button" data-step="-1" title="Previous character" aria-label="Previous character">←</button>
+          <div class="character-current"><strong>${p.hero === 'Random' ? 'Random' : h?.id || 'Choose a character'}</strong><span>${h?.role || (p.hero === 'Random' ? 'A different available hero each run' : 'Use the arrows to browse heroes')}</span></div>
+          <button class="character-arrow" type="button" data-step="1" title="Next character" aria-label="Next character">→</button>
+        </div>`;
+      } else {
+        selector = `<div class="other-player-hero">${h ? `${esc(h.id)} · ${esc(h.role)}` : p.hero === 'Random' ? 'Random hero' : 'Choosing a character'}</div>`;
+      }
+      return `<article class="party-slot ${isSelf ? 'own-party-slot' : ''} ${p.ready ? 'player-ready' : ''}">
+        <div class="slot-heading"><span>PLAYER ${index + 1}</span><span>${isSelf ? (p.id === currentRoom.hostId ? 'YOU · HOST' : 'YOU') : p.id === currentRoom.hostId ? 'HOST' : 'PARTY'}</span></div>
+        ${heroFace}${selector}${nameControl}
+        <div class="slot-status ${p.ready ? 'ready' : ''}">${p.ready ? 'READY' : p.online ? 'Not ready' : 'Reconnecting…'}</div>
+      </article>`;
     }).join('');
+    const onlinePlayers = currentRoom.players.filter(p => p.online);
+    const canStart = onlinePlayers.length > 0 && onlinePlayers.every(p => p.ready && p.hero);
+    const nameEditing = document.activeElement?.id === 'lobby-player-name';
+    const nameSelection = nameEditing ? document.activeElement.selectionStart : null;
     panel.innerHTML = `
-      <div class="eyebrow" style="text-align:center">${currentRoom.mode === 'solo' ? 'Solo challenge' : 'Four-player party'}</div>
-      <h1 class="lobby-title">${currentRoom.mode === 'solo' ? 'Prepare for the arena' : 'Gather your champions'}</h1>
-      <div class="room-code-wrap"><div class="room-code-label">Room code · share with your party</div><div class="room-code">${currentRoom.code}</div><button class="btn quiet" data-action="copy">Copy room code</button></div>
-      <div class="player-list">${slots}</div>
-      <div class="lobby-subhead">Your champion</div>
-      <div class="hero-picker">${HEROES.map(h => `<button class="hero-pick ${self?.hero === h.id ? 'selected' : ''}" data-hero="${h.id}"><img src="/art/${encodeURIComponent(h.art)}" alt=""><span>${h.id}${self?.hero === h.id ? ' · selected' : ''}</span></button>`).join('')}</div>
-      <div class="lobby-actions"><span class="lobby-note">${isHost ? 'Start when every connected player is ready.' : 'Choose a champion, then ready up.'}<br>${currentRoom.players.length}/4 players in the party</span>
-        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn quiet" data-action="leave">Leave room</button><button class="btn secondary" data-action="ready">${self?.ready ? 'Cancel ready' : 'Ready up'}</button>${isHost ? `<button class="btn" data-action="start" ${currentRoom.players.every(p => p.ready && p.online) ? '' : 'disabled'}>Start the run</button>` : ''}</div>
+      <div class="eyebrow" style="text-align:center">YOUR PARTY</div>
+      <h1 class="lobby-title">${esc(currentRoom.partyName || 'Gather your champions')}</h1>
+      <div class="party-code-bar"><div><div class="room-code-label">Invite friends with this code</div><div class="room-code">${currentRoom.code}</div></div><button class="btn quiet" data-action="copy">Copy code</button></div>
+      <div class="party-progress"><span>${currentRoom.players.length}/4 joined</span><span>Choose a hero and ready up</span></div>
+      <div class="party-slot-grid">${slots}</div>
+      <div class="lobby-actions"><span class="lobby-note">${isHost ? 'The host can start once everyone online is ready.' : 'The host will start the run when the party is ready.'}</span>
+        <div class="lobby-action-buttons"><button class="btn quiet" data-action="leave">Leave party</button><button class="btn secondary" data-action="ready" ${(HEROES.some(character => character.id === self?.hero) || self?.hero === 'Random') ? '' : 'disabled'}>${self?.ready ? 'Cancel ready' : 'Ready up'}</button>${isHost ? `<button class="btn" data-action="start" ${canStart ? '' : 'disabled'}>Start the run</button>` : ''}</div>
       </div>`;
-    panel.querySelectorAll('[data-hero]').forEach(button => button.addEventListener('click', () => act('character', button.dataset.hero)));
+    panel.querySelectorAll('[data-step]').forEach(button => button.addEventListener('click', () => stepLobbyCharacter(Number(button.dataset.step))));
     panel.querySelector('[data-action="copy"]').addEventListener('click', copyCode);
     panel.querySelector('[data-action="ready"]').addEventListener('click', () => act('ready', !self?.ready));
     panel.querySelector('[data-action="leave"]').addEventListener('click', leaveRoom);
     panel.querySelector('[data-action="start"]')?.addEventListener('click', async () => { try { await act('start'); } catch { /* inline toast already shown */ } });
+    const nameInput = panel.querySelector('#lobby-player-name');
+    nameInput?.addEventListener('input', event => persistName(event.target.value));
+    nameInput?.addEventListener('change', event => act('name', event.target.value));
+    nameInput?.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); event.target.blur(); } });
+    if (nameEditing && nameInput) { nameInput.focus(); if (nameSelection != null) nameInput.setSelectionRange(nameSelection, nameSelection); }
+  }
+  function updateLocalLobbyHeroSelection() {
+    const self = getSelf();
+    const card = document.querySelector('#lobby-panel .own-party-slot');
+    if (!self || !card) return;
+    const selected = HEROES.find(character => character.id === self.hero);
+    const portrait = card.querySelector('.slot-portrait');
+    if (portrait) {
+      portrait.outerHTML = selected
+        ? `<img class="slot-portrait" src="/art/${encodeURIComponent(selected.art)}" alt="${esc(selected.id)} character art">`
+        : `<div class="slot-portrait empty-portrait ${self.hero === 'Random' ? 'random-portrait' : ''}"><span>${self.hero === 'Random' ? '?' : '＋'}</span></div>`;
+    }
+    const title = card.querySelector('.character-current strong');
+    const description = card.querySelector('.character-current span');
+    if (title) title.textContent = selected?.id || (self.hero === 'Random' ? 'Random' : 'Choose a character');
+    if (description) description.textContent = selected?.role || (self.hero === 'Random' ? 'A different available hero each run' : 'Use the arrows to browse heroes');
+    card.classList.toggle('player-ready', Boolean(self.ready));
+    const status = card.querySelector('.slot-status');
+    if (status) {
+      status.textContent = self.ready ? 'READY' : self.online ? 'Not ready' : 'Reconnecting…';
+      status.classList.toggle('ready', Boolean(self.ready));
+    }
+    const readyButton = document.querySelector('#lobby-panel [data-action="ready"]');
+    if (readyButton) {
+      readyButton.disabled = !(selected || self.hero === 'Random');
+      readyButton.textContent = self.ready ? 'Cancel ready' : 'Ready up';
+    }
+    const startButton = document.querySelector('#lobby-panel [data-action="start"]');
+    if (startButton && !self.ready) startButton.disabled = true;
+    lobbyKey = lobbySignature();
+  }
+  async function stepLobbyCharacter(direction) {
+    if (!currentRoom) return;
+    const currentPlayer = getSelf();
+    if (!currentPlayer) { showToast('Your player slot is reconnecting. Please wait a moment.'); return; }
+    const options = [...HEROES.map(character => character.id), 'Random'];
+    let index = options.indexOf(currentPlayer.hero);
+    // The initial blank slot is only an entry state; it is not repeated in the
+    // carousel, so cycling never shows a second "Choose a character" option.
+    if (index < 0) index = direction < 0 ? 0 : -1;
+    const unavailable = new Set(currentRoom.players.filter(other => other.id !== playerId).map(other => other.hero).filter(Boolean));
+    let nextChoice;
+    for (let attempt = 0; attempt < options.length; attempt++) {
+      index = (index + direction + options.length) % options.length;
+      const choice = options[index];
+      if (choice === 'Random' || !unavailable.has(choice)) { nextChoice = choice; break; }
+    }
+    if (nextChoice === undefined) return;
+
+    pendingLobbyHeroChoice = { choice: nextChoice, version: ++lobbyHeroChoiceVersion };
+    currentRoom = { ...currentRoom, players: currentRoom.players.map(player => player.id === playerId
+      ? { ...player, hero: nextChoice, ready: false }
+      : player) };
+    updateLocalLobbyHeroSelection();
+    syncLobbyHeroChoice();
+  }
+  async function syncLobbyHeroChoice() {
+    if (lobbyHeroSyncing) return;
+    lobbyHeroSyncing = true;
+    while (pendingLobbyHeroChoice) {
+      const requested = pendingLobbyHeroChoice;
+      try {
+        await act('character', requested.choice);
+        if (pendingLobbyHeroChoice?.version === requested.version) {
+          lobbyHeroActionAckAt = performance.now();
+          pendingLobbyHeroChoice = null;
+        }
+      } catch {
+        if (pendingLobbyHeroChoice?.version === requested.version) {
+          pendingLobbyHeroChoice = null;
+          setTimeout(poll, 0);
+        }
+      }
+    }
+    lobbyHeroSyncing = false;
+    updateLobby();
   }
   async function copyCode() {
     try { await navigator.clipboard.writeText(currentRoom.code); showToast(`Room code ${currentRoom.code} copied.`); }
@@ -290,6 +472,8 @@
     if (!currentRoom) return;
     setScreen('game');
     overlayStateKey = '';
+    lastPartyStatusMarkup = '';
+    minimapDots = new Map();
     lastSeenPhase = currentRoom.game?.phase || '';
     app.innerHTML = `
       <section class="game-screen">
@@ -298,7 +482,7 @@
           <div class="wave-block"><div class="wave-label">Coliseum run</div><div class="wave-value" id="wave-label">Wave 1 / 10</div></div>
           <div class="progress-wrap"><div class="progress-label"><span id="progress-copy">The slimes are gathering</span><span id="enemy-count">0 enemies</span></div><div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div></div>
           <div class="top-stats"><span id="fps-counter" title="Rendered frames per second">-- FPS</span><span>☠ <strong id="kill-count">0</strong></span><span class="score-stat">✦ <strong id="team-score">0</strong></span></div>
-          <button class="icon-btn" title="Settings and controls" data-action="help">?</button>
+          <button class="icon-btn gear-icon" title="Settings and controls" aria-label="Settings and controls" data-action="help">⚙</button>
         </header>
         <div class="game-body">
           <div class="arena-wrap"><canvas id="arena-background" aria-hidden="true"></canvas><canvas id="arena" aria-label="Top-down slime arena"></canvas>
@@ -542,14 +726,26 @@
     const kills=document.querySelector('#kill-count'); if(kills) kills.textContent=g.teamKills;
     const score=document.querySelector('#team-score'); if(score) score.textContent=(currentRoom.players||[]).reduce((sum,p)=>sum+p.score,0);
     const status=document.querySelector('#party-status');
-    if(status) status.innerHTML=(currentRoom.players||[]).map(p=>`<div class="party-row"><div class="party-dot" style="color:${hero(p.hero).color}">${p.hero[0]}</div><span>${esc(p.name)}${p.id===playerId?' · you':''}</span><strong>${Math.max(0,Math.ceil(p.hp))}</strong><div class="hp-track"><div class="hp-fill" style="width:${p.maxHp?Math.max(0,p.hp/p.maxHp*100):0}%;background:${p.alive?'#79bb70':'#e76850'}"></div></div></div>`).join('');
+    const statusMarkup=(currentRoom.players||[]).map(p=>`<div class="party-row"><div class="party-dot" style="color:${hero(p.hero).color}">${p.hero[0]}</div><span>${esc(p.name)}${p.id===playerId?' · you':''}</span><strong>${Math.max(0,Math.ceil(p.hp))}</strong><div class="hp-track"><div class="hp-fill" style="width:${p.maxHp?Math.max(0,Math.round(p.hp/p.maxHp*100)):0}%;background:${p.alive?'#79bb70':'#e76850'}"></div></div></div>`).join('');
+    if(status && statusMarkup!==lastPartyStatusMarkup) { status.innerHTML=statusMarkup; lastPartyStatusMarkup=statusMarkup; }
     const mini=document.querySelector('#minimap');
     const now=performance.now();
     if(mini && now-lastMinimapRenderAt>=200) {
       lastMinimapRenderAt=now;
-      mini.innerHTML='';
-      for(const p of currentRoom.players||[]){const dot=document.createElement('span');dot.className='map-dot player';dot.style.color=hero(p.hero).color;dot.style.background=hero(p.hero).color;dot.style.left=`${p.x/1200*100}%`;dot.style.top=`${p.y/760*100}%`;mini.append(dot);}
-      for(const e of g.enemies||[]){const dot=document.createElement('span');dot.className='map-dot enemy';dot.style.color=e.color;dot.style.background=e.color;dot.style.left=`${e.x/1200*100}%`;dot.style.top=`${e.y/760*100}%`;mini.append(dot);}
+      const entities=[...(currentRoom.players||[]).map(p=>({key:`player:${p.id}`,type:'player',entity:p,color:hero(p.hero).color})),...(g.enemies||[]).map(e=>({key:`enemy:${e.id}`,type:'enemy',entity:e,color:e.color}))];
+      const activeKeys=new Set(entities.map(item=>item.key));
+      for(const [key,dot] of minimapDots) {
+        if(!activeKeys.has(key)) { dot.remove(); minimapDots.delete(key); }
+      }
+      for(const item of entities) {
+        let dot=minimapDots.get(item.key);
+        if(!dot) {
+          dot=document.createElement('span'); dot.className=`map-dot ${item.type}`;
+          mini.append(dot); minimapDots.set(item.key,dot);
+        }
+        dot.style.color=item.color; dot.style.background=item.color;
+        dot.style.left=`${item.entity.x/1200*100}%`; dot.style.top=`${item.entity.y/760*100}%`;
+      }
     }
     const chip=document.querySelector('#ability-chip');
     if(chip&&self){const left=Math.ceil(self.abilityCooldown);chip.textContent=left>0?`${left}s · ${self.abilityName||'Ability'}`:`E · ${self.abilityName||'Ability'}`;chip.classList.toggle('ready',left<=0&&self.alive);}
@@ -643,11 +839,10 @@
   window.addEventListener('blur',()=>{keys.clear();moveVector={x:0,y:0};});
 
   function showSettings() {
-    const previous=currentScreen;
     const existing=document.querySelector('#modal-root');
     if(existing){existing.remove();return;}
     const modal=document.createElement('div');modal.id='modal-root';modal.className='overlay';modal.style.position='fixed';modal.style.zIndex='30';
-    modal.innerHTML=`<div class="overlay-card" style="text-align:left"><div class="eyebrow">Slime Slayer</div><h2>Settings &amp; quick rules</h2><p class="small muted">Move with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrow keys. Your hero attacks automatically when a slime is in range. Press <kbd>E</kbd> to use your champion ability.</p><p class="small muted">Survive the ten waves. Pick one upgrade after every cleared wave. In co-op, fallen champions return between waves. Red slimes burst when defeated. Watch for ranged shots from green, yellow, and black slimes.</p><label class="small" for="volume-slider">Sound effects <span id="volume-label">${Math.round(volume*100)}%</span></label><input id="volume-slider" type="range" min="0" max="100" value="${Math.round(volume*100)}" style="display:block;width:100%;margin:12px 0 19px"><div style="display:flex;justify-content:flex-end"><button class="btn" data-action="close">Return to game</button></div></div>`;
+    modal.innerHTML=`<div class="overlay-card" style="text-align:left"><div class="eyebrow">Slime Slayer</div><h2>Settings &amp; quick rules</h2><p class="small muted">Move with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrow keys. Your hero attacks automatically when a slime is in range. Press <kbd>E</kbd> to use your champion ability.</p><p class="small muted">Survive the ten waves. Pick one upgrade after every cleared wave. In co-op, fallen champions return between waves. Red slimes burst when defeated. Watch for ranged shots from green, yellow, and black slimes.</p><label class="small" for="volume-slider">Sound effects <span id="volume-label">${Math.round(volume*100)}%</span></label><input id="volume-slider" type="range" min="0" max="100" value="${Math.round(volume*100)}" style="display:block;width:100%;margin:12px 0 19px"><div style="display:flex;justify-content:flex-end"><button class="btn" data-action="close">Close</button></div></div>`;
     document.body.append(modal);
     modal.querySelector('[data-action="close"]').addEventListener('click',()=>modal.remove());
     modal.addEventListener('click',event=>{if(event.target===modal)modal.remove();});
