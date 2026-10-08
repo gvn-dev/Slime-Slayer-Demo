@@ -111,7 +111,7 @@ function newGame() {
 function publicRoom(room, viewerId) {
   const now = Date.now();
   return {
-    code: room.code, mode: room.mode, partyName: room.partyName, status: room.status, hostId: room.hostId,
+    serverTime: now, code: room.code, mode: room.mode, partyName: room.partyName, status: room.status, hostId: room.hostId,
     isHost: room.hostId === viewerId,
     players: room.players.map(p => ({
       id: p.id, name: p.name, hero: p.hero, ready: p.ready, online: isOnline(p, now),
@@ -156,7 +156,9 @@ function readJson(req) {
   });
 }
 function newEffect(game, x, y, color, radius, kind = 'ring', duration = 0.42) {
-  game.effects.push({ id: game.nextId++, x, y, color, radius, kind, life: duration, maxLife: duration });
+  const effect = { id: game.nextId++, x, y, color, radius, kind, life: duration, maxLife: duration, createdAt: Date.now() };
+  game.effects.push(effect);
+  return effect;
 }
 function spawnEnemy(room, type) {
   const game = room.game;
@@ -295,6 +297,8 @@ function updateGame(room, dt, now) {
 
   for (const player of room.players) {
     if (!isOnline(player, now)) player.move = { x: 0, y: 0 };
+    player.tickStartX = player.x;
+    player.tickStartY = player.y;
     if (!player.alive) continue;
     const stats = heroStats(player);
     player.maxHp = stats.maxHp;
@@ -319,7 +323,8 @@ function updateGame(room, dt, now) {
         } else {
           game.projectiles.push({
             id: game.nextId++, type: 'hero', from: player.id, target: target.id,
-            x: player.x, y: player.y, speed: stats.kind === 'arrow' ? 560 : 390,
+            x: player.x, y: player.y, originX: player.x, originY: player.y,
+            createdAt: now, launchedThisTick: true, speed: stats.kind === 'arrow' ? 560 : 390,
             damage: stats.damage, color: stats.kind === 'arrow' ? '#f2e8ff' : '#8ee677',
             radius: stats.kind === 'arrow' ? 6 : 9, poison: stats.kind === 'orb', mark: false
           });
@@ -362,7 +367,8 @@ function updateGame(room, dt, now) {
       const mark = enemy.type === 'black';
       game.projectiles.push({
         id: game.nextId++, type: 'enemy', from: enemy.id, target: target.id,
-        x: enemy.x, y: enemy.y, tx: target.x, ty: target.y,
+        x: enemy.x, y: enemy.y, originX: enemy.x, originY: enemy.y,
+        createdAt: now, launchedThisTick: true, tx: target.x, ty: target.y,
         speed: enemy.type === 'yellow' ? 300 : 210, damage: enemy.damage,
         color: enemy.color, radius: enemy.type === 'black' ? 12 : 8,
         slow: enemy.type === 'green', mark
@@ -387,6 +393,10 @@ function updateGame(room, dt, now) {
   }
 
   for (const projectile of [...game.projectiles]) {
+    if (projectile.launchedThisTick) {
+      projectile.launchedThisTick = false;
+      continue;
+    }
     const isHeroProjectile = projectile.type === 'hero';
     const target = isHeroProjectile
       ? game.enemies.find(e => e.id === projectile.target)
@@ -404,17 +414,27 @@ function updateGame(room, dt, now) {
     let hit = isHeroProjectile && dist <= step + (target.size || 15);
 
     if (!isHeroProjectile) {
-      // Ranged shots travel toward the launch-time aim point, but only hit if
-      // their visible path overlaps the player's current, tighter body hitbox.
-      const segmentLengthSquared = moveX * moveX + moveY * moveY;
-      const projection = segmentLengthSquared > 0
-        ? clamp(((target.x - projectile.x) * moveX + (target.y - projectile.y) * moveY) / segmentLengthSquared, 0, 1)
+      // Compare both paths over the same tick. Comparing the projectile's
+      // full segment with only the player's end position shifts hits in time.
+      const playerStartX = target.tickStartX ?? target.x;
+      const playerStartY = target.tickStartY ?? target.y;
+      const relativeStartX = projectile.x - playerStartX;
+      const relativeStartY = projectile.y - playerStartY;
+      const projectileTickFraction = step > 0 ? travel / step : 0;
+      const relativeMoveX = moveX - (target.x - playerStartX) * projectileTickFraction;
+      const relativeMoveY = moveY - (target.y - playerStartY) * projectileTickFraction;
+      const relativeLengthSquared = relativeMoveX * relativeMoveX + relativeMoveY * relativeMoveY;
+      const projection = relativeLengthSquared > 0
+        ? clamp(-(relativeStartX * relativeMoveX + relativeStartY * relativeMoveY) / relativeLengthSquared, 0, 1)
         : 0;
-      const closestX = projectile.x + moveX * projection;
-      const closestY = projectile.y + moveY * projection;
+      const closestRelativeX = relativeStartX + relativeMoveX * projection;
+      const closestRelativeY = relativeStartY + relativeMoveY * projection;
       const hitRadius = PLAYER_HIT_RADIUS + (projectile.radius || 0);
-      hit = Math.hypot(target.x - closestX, target.y - closestY) <= hitRadius;
-      if (hit) { projectile.x = closestX; projectile.y = closestY; }
+      hit = Math.hypot(closestRelativeX, closestRelativeY) <= hitRadius;
+      if (hit) {
+        projectile.x += moveX * projection;
+        projectile.y += moveY * projection;
+      }
     }
 
     if (hit) {
@@ -441,7 +461,8 @@ function updateGame(room, dt, now) {
           if (downed && room.mode === 'solo') endRun(room, 'lost');
         }
       }
-      newEffect(game, projectile.x, projectile.y, projectile.color, 26, 'pop', 0.18);
+      const impact = newEffect(game, projectile.x, projectile.y, projectile.color, 26, 'pop', 0.18);
+      impact.projectileId = projectile.id;
       game.projectiles = game.projectiles.filter(p => p !== projectile);
     } else if (dist <= step) {
       // A ranged attack that reaches its aimed point without intersecting its
@@ -450,6 +471,7 @@ function updateGame(room, dt, now) {
     } else {
       projectile.x = nextX;
       projectile.y = nextY;
+      projectile.launchedThisTick = false;
     }
   }
 

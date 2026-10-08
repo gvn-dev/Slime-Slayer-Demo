@@ -300,17 +300,26 @@
   }
   function recordSnapshot(room) {
     const game = room.game;
+    const at = performance.now();
+    const renderEventAt = serverAt => Number.isFinite(serverAt) && Number.isFinite(room.serverTime)
+      ? at - Math.max(0, room.serverTime - serverAt)
+      : null;
     snapshots.push({
-      at: performance.now(), room,
+      at, room,
       players: new Map((room.players || []).map(player => [player.id, player])),
       enemies: new Map((game?.enemies || []).map(enemy => [enemy.id, enemy])),
-      projectiles: new Map((game?.projectiles || []).map(projectile => [projectile.id, projectile]))
+      projectiles: new Map((game?.projectiles || []).map(projectile => [projectile.id, {
+        ...projectile, renderCreatedAt: renderEventAt(projectile.createdAt)
+      }])),
+      effects: new Map((game?.effects || []).map(effect => [effect.id, {
+        ...effect, renderCreatedAt: renderEventAt(effect.createdAt)
+      }]))
     });
     if (snapshots.length > 8) snapshots.shift();
   }
   function renderFrame() {
-    if (!snapshots.length) return { room: currentRoom, before: null, alpha: 1 };
     const target = performance.now() - SNAPSHOT_DELAY_MS;
+    if (!snapshots.length) return { room: currentRoom, before: null, after: null, targetAt: target, alpha: 1 };
     let before = snapshots[0];
     let after = snapshots[snapshots.length - 1];
     if (target < before.at) after = before;
@@ -325,7 +334,7 @@
       }
     }
     const alpha = after.at > before.at ? Math.max(0, Math.min(1, (target - before.at) / (after.at - before.at))) : 1;
-    return { room: after.room, before, alpha };
+    return { room: after.room, before, after, targetAt: target, alpha };
   }
   function renderLobby(initial = false) {
     setScreen('lobby');
@@ -639,17 +648,10 @@
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, width, height);
     ctx.setTransform(scale, 0, 0, scale, ox, oy);
-    for (const effect of room.game?.effects || []) drawEffect(ctx, effect);
+    const effects = visualEffects(frame, room);
+    for (const effect of effects) drawEffect(ctx, effect);
     const alpha = frame?.alpha ?? 1;
-    const oldProjectiles = frame?.before?.projectiles;
-    for (const projectile of room.game?.projectiles || []) {
-      const old = oldProjectiles?.get(projectile.id);
-      const x = old ? old.x + (projectile.x - old.x) * alpha : projectile.x;
-      const y = old ? old.y + (projectile.y - old.y) * alpha : projectile.y;
-      ctx.save(); ctx.shadowBlur = 15; ctx.shadowColor = projectile.color || '#fff';
-      ctx.fillStyle = projectile.color || '#fff'; ctx.beginPath(); ctx.arc(x, y, projectile.radius || 6, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
-    }
+    drawProjectiles(ctx, room, frame, alpha);
     const oldEnemies = frame?.before?.enemies;
     for (const enemy of room.game?.enemies || []) {
       const old = oldEnemies?.get(enemy.id);
@@ -669,6 +671,90 @@
       drawHero(ctx, visualPlayer, x, y);
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+  function visualEffects(frame, room) {
+    const before = frame?.before?.effects || new Map();
+    const after = frame?.after?.effects || new Map((room.game?.effects || []).map(effect => [effect.id, effect]));
+    const targetAt = frame?.targetAt ?? performance.now();
+    const visible = [];
+    const ids = new Set([...before.keys(), ...after.keys()]);
+    for (const id of ids) {
+      const effect = after.get(id) || before.get(id);
+      const bornAt = Number.isFinite(effect.renderCreatedAt)
+        ? effect.renderCreatedAt
+        : after.has(id) && frame?.after
+          ? frame.after.at - (effect.maxLife - effect.life) * 1000
+          : null;
+      let life;
+      if (Number.isFinite(bornAt)) {
+        if (targetAt < bornAt) continue;
+        life = effect.maxLife - (targetAt - bornAt) / 1000;
+      } else {
+        life = effect.life - (targetAt - (frame?.before?.at ?? targetAt)) / 1000;
+      }
+      life = Math.max(0, Math.min(effect.maxLife, life));
+      if (life > 0) visible.push({ ...effect, life });
+    }
+    return visible;
+  }
+  function projectilePositionAt(projectile, at, snapshotRoom) {
+    if (Number.isFinite(projectile.renderCreatedAt)) {
+      if (at < projectile.renderCreatedAt) return null;
+      const speed = projectile.speed || 0;
+      let target = null;
+      if (projectile.type === 'enemy') target = { x: projectile.tx, y: projectile.ty };
+      else target = snapshotRoom?.game?.enemies?.find(enemy => enemy.id === projectile.target);
+      if (target && Number.isFinite(projectile.originX) && Number.isFinite(projectile.originY)) {
+        const dx = target.x - projectile.originX;
+        const dy = target.y - projectile.originY;
+        const distance = Math.max(1, Math.hypot(dx, dy));
+        const elapsed = (at - projectile.renderCreatedAt) / 1000;
+        if (speed > 0 && elapsed >= distance / speed) return null;
+        const traveled = Math.min(distance, speed * elapsed);
+        return { x: projectile.originX + dx / distance * traveled, y: projectile.originY + dy / distance * traveled };
+      }
+    }
+    return { x: projectile.x, y: projectile.y };
+  }
+  function drawProjectiles(ctx, room, frame, alpha) {
+    const before = frame?.before?.projectiles || new Map();
+    const after = frame?.after?.projectiles || new Map((room.game?.projectiles || []).map(projectile => [projectile.id, projectile]));
+    const afterEffects = frame?.after?.effects || new Map((room.game?.effects || []).map(effect => [effect.id, effect]));
+    const impactByProjectile = new Map([...afterEffects.values()]
+      .filter(effect => effect.projectileId != null)
+      .map(effect => [effect.projectileId, effect]));
+    const targetAt = frame?.targetAt ?? performance.now();
+    const ids = new Set([...before.keys(), ...after.keys()]);
+    for (const id of ids) {
+      const old = before.get(id);
+      const current = after.get(id);
+      const projectile = current || old;
+      let point = null;
+      if (old && current && frame?.before !== frame?.after) {
+        point = { x: old.x + (current.x - old.x) * alpha, y: old.y + (current.y - old.y) * alpha };
+      } else if (old && !current) {
+        const impact = impactByProjectile.get(id);
+        if (impact) {
+          const impactAt = Number.isFinite(impact.renderCreatedAt)
+            ? impact.renderCreatedAt
+            : (frame?.after?.at ?? targetAt) - (impact.maxLife - impact.life) * 1000;
+          if (targetAt <= impactAt) {
+            const span = Math.max(1, impactAt - (frame?.before?.at ?? targetAt));
+            const progress = Math.max(0, Math.min(1, (targetAt - (frame?.before?.at ?? targetAt)) / span));
+            point = { x: old.x + (impact.x - old.x) * progress, y: old.y + (impact.y - old.y) * progress };
+          }
+        } else {
+          point = projectilePositionAt(old, targetAt, frame?.before?.room || room);
+        }
+      } else {
+        const snapshotRoom = current ? (frame?.after?.room || room) : (frame?.before?.room || room);
+        point = projectilePositionAt(projectile, targetAt, snapshotRoom);
+      }
+      if (!point) continue;
+      ctx.save(); ctx.shadowBlur = 15; ctx.shadowColor = projectile.color || '#fff';
+      ctx.fillStyle = projectile.color || '#fff'; ctx.beginPath(); ctx.arc(point.x, point.y, projectile.radius || 6, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
   }
   function drawArenaPillars(ctx) {
     const pillars = [[72,72],[1128,72],[72,688],[1128,688],[600,48],[600,712],[44,380],[1156,380]];
@@ -741,9 +827,12 @@
     ctx.restore();
   }
   function drawEffect(ctx, effect) {
-    const t = Math.max(0,effect.life/effect.maxLife);
+    const maxLife = Number.isFinite(effect.maxLife) && effect.maxLife > 0 ? effect.maxLife : 1;
+    const life = Number.isFinite(effect.life) ? effect.life : 0;
+    const effectRadius = Number.isFinite(effect.radius) ? Math.max(0, effect.radius) : 0;
+    const t = Math.max(0,Math.min(1,life/maxLife));
     ctx.save(); ctx.globalAlpha=t; ctx.strokeStyle=effect.color; ctx.fillStyle=effect.color;
-    const radius=effect.radius*(1.25-t*.25);
+    const radius=Math.max(0,effectRadius*(1.25-t*.25));
     if (effect.kind==='breath') {
       ctx.globalAlpha=t*.2; ctx.beginPath(); ctx.arc(effect.x,effect.y,radius,0,Math.PI*2); ctx.fill();
       ctx.globalAlpha=t*.85; ctx.lineWidth=7*t; ctx.beginPath(); ctx.arc(effect.x,effect.y,radius*.84,Math.PI*1.1,Math.PI*1.9); ctx.stroke();
@@ -753,7 +842,7 @@
     } else {
       ctx.globalAlpha=t*(effect.kind==='pop'?.38:.72); ctx.lineWidth=effect.kind==='slash'?7:3;
       ctx.beginPath(); ctx.arc(effect.x,effect.y,Math.max(6,radius*(1-t*.35)),0,Math.PI*2); ctx.stroke();
-      if(effect.kind==='pop'||effect.kind==='burst'){ctx.globalAlpha=t*.35;ctx.beginPath();ctx.arc(effect.x,effect.y,radius*.45*(1-t),0,Math.PI*2);ctx.fill();}
+      if(effect.kind==='pop'||effect.kind==='burst'){ctx.globalAlpha=t*.35;ctx.beginPath();ctx.arc(effect.x,effect.y,Math.max(0,radius*.45*(1-t)),0,Math.PI*2);ctx.fill();}
     }
     ctx.restore();
   }
