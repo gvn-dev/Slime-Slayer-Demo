@@ -7,7 +7,8 @@ const PORT = Number(process.env.PORT || 3000);
 const ROOT = __dirname;
 const PUBLIC = path.join(ROOT, 'public');
 const rooms = new Map();
-const WORLD = { width: 1200, height: 760 };
+const WORLD = { width: 1200, height: 1200 };
+const ARENA_RADIUS = 560;
 const PLAYER_HIT_RADIUS = 12;
 const ROOM_TTL = 30 * 60 * 1000;
 const PLAYER_OFFLINE_MS = 9000;
@@ -48,6 +49,17 @@ const WAVE_TYPES = {
 };
 
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+function clampToArena(x, y, inset = 0) {
+  const centerX = WORLD.width / 2;
+  const centerY = WORLD.height / 2;
+  const dx = x - centerX;
+  const dy = y - centerY;
+  const distance = Math.hypot(dx, dy);
+  const maxDistance = Math.max(0, ARENA_RADIUS - inset);
+  if (distance <= maxDistance || distance === 0) return { x, y };
+  const scale = maxDistance / distance;
+  return { x: centerX + dx * scale, y: centerY + dy * scale };
+}
 function cleanName(value) {
   const name = String(value || '').trim().replace(/[<>]/g, '').slice(0, 18);
   return name || 'Slime Slayer';
@@ -61,7 +73,7 @@ function makeCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code;
   do { code = Array.from({ length: 5 }, () => chars[Math.floor(Math.random() * chars.length)]).join(''); }
-  while (rooms.has(code));
+  while ([...rooms.values()].some(room => room.code === code));
   return code;
 }
 function makePlayer(id, name, hero) {
@@ -70,7 +82,7 @@ function makePlayer(id, name, hero) {
   return {
     id, name: cleanName(name), hero: chosenHero, ready: false,
     x: WORLD.width / 2, y: WORLD.height / 2, hp: stats.hp, maxHp: stats.hp,
-    alive: true, score: 0, damage: 0, kills: 0, move: { x: 0, y: 0 }, facing: { x: 1, y: 0 },
+    alive: true, score: 0, damage: 0, kills: 0, deaths: 0, move: { x: 0, y: 0 }, facing: { x: 1, y: 0 },
     attackCooldown: 0, abilityCooldown: 0, stunnedUntil: 0, rootedUntil: 0, markedUntil: 0,
     invulnerableUntil: 0, buff: { damage: 1, speed: 1, maxHp: 1, cooldown: 1 },
     upgradePicked: false, lastSeen: Date.now(), lastInput: 0
@@ -86,7 +98,10 @@ function heroStats(player) {
     interval: base.interval * player.buff.cooldown
   };
 }
-function getRoom(code) { return rooms.get(String(code || '').toUpperCase()); }
+function getRoom(identifier) {
+  const value = String(identifier || '');
+  return rooms.get(value) || [...rooms.values()].find(room => room.code === value.toUpperCase() || room.joinToken === value) || null;
+}
 function isOnline(player, now = Date.now()) { return now - player.lastSeen < PLAYER_OFFLINE_MS; }
 function moveHost(room) {
   if (room.players.some(p => p.id === room.hostId && isOnline(p))) return;
@@ -111,12 +126,14 @@ function newGame() {
 function publicRoom(room, viewerId) {
   const now = Date.now();
   return {
-    serverTime: now, code: room.code, mode: room.mode, partyName: room.partyName, status: room.status, hostId: room.hostId,
+    serverTime: now, id: room.id, code: room.mode === 'coop' && room.visibility === 'private' ? room.code : null,
+    joinToken: room.mode === 'coop' ? room.joinToken : null,
+    visibility: room.visibility || 'private', mode: room.mode, partyName: room.partyName, status: room.status, hostId: room.hostId,
     isHost: room.hostId === viewerId,
     players: room.players.map(p => ({
       id: p.id, name: p.name, hero: p.hero, ready: p.ready, online: isOnline(p, now),
       x: p.x, y: p.y, hp: p.hp, maxHp: p.maxHp, alive: p.alive, score: p.score,
-      damage: p.damage, kills: p.kills, abilityCooldown: p.abilityCooldown,
+      damage: p.damage, kills: p.kills, deaths: p.deaths, abilityCooldown: p.abilityCooldown,
       abilityName: HEROES[p.hero]?.ability, upgradePicked: p.upgradePicked,
       buff: p.buff, marked: p.markedUntil > now
     })),
@@ -164,9 +181,10 @@ function spawnEnemy(room, type) {
   const game = room.game;
   const spec = ENEMY[type];
   if (!game || !spec) return;
-  const side = Math.floor(Math.random() * 4);
-  const x = side === 0 ? 20 : side === 1 ? WORLD.width - 20 : 100 + Math.random() * (WORLD.width - 200);
-  const y = side === 2 ? 20 : side === 3 ? WORLD.height - 20 : 90 + Math.random() * (WORLD.height - 180);
+  const angle = Math.random() * Math.PI * 2;
+  const spawnRadius = ARENA_RADIUS - spec.size - 8;
+  const x = WORLD.width / 2 + Math.cos(angle) * spawnRadius;
+  const y = WORLD.height / 2 + Math.sin(angle) * spawnRadius;
   const scale = type === 'king' ? 1 : 1 + (game.wave - 1) * 0.13;
   game.enemies.push({
     id: game.nextId++, type, name: spec.name, x, y, hp: Math.ceil(spec.hp * scale),
@@ -185,6 +203,7 @@ function damagePlayer(player, amount, now) {
   player.hp = Math.max(0, player.hp - Math.max(1, Math.round(damage)));
   if (player.hp <= 0) {
     player.alive = false;
+    player.deaths++;
     player.move = { x: 0, y: 0 };
     return true;
   }
@@ -306,8 +325,13 @@ function updateGame(room, dt, now) {
     player.attackCooldown = Math.max(0, player.attackCooldown - dt);
     player.abilityCooldown = Math.max(0, player.abilityCooldown - dt);
     const move = now < player.rootedUntil || now < player.stunnedUntil ? { x: 0, y: 0 } : player.move;
-    player.x = clamp(player.x + move.x * stats.speed * dt, 28, WORLD.width - 28);
-    player.y = clamp(player.y + move.y * stats.speed * dt, 28, WORLD.height - 28);
+    const playerPosition = clampToArena(
+      player.x + move.x * stats.speed * dt,
+      player.y + move.y * stats.speed * dt,
+      28
+    );
+    player.x = playerPosition.x;
+    player.y = playerPosition.y;
     if (player.attackCooldown <= 0) {
       const target = nearestEnemy(game, player.x, player.y, stats.range);
       if (target) {
@@ -358,8 +382,13 @@ function updateGame(room, dt, now) {
       const dx = target.x - enemy.x;
       const dy = target.y - enemy.y;
       const d = Math.max(1, Math.hypot(dx, dy));
-      enemy.x = clamp(enemy.x + dx / d * enemy.speed * dt, 16, WORLD.width - 16);
-      enemy.y = clamp(enemy.y + dy / d * enemy.speed * dt, 16, WORLD.height - 16);
+      const enemyPosition = clampToArena(
+        enemy.x + dx / d * enemy.speed * dt,
+        enemy.y + dy / d * enemy.speed * dt,
+        Math.max(16, enemy.size)
+      );
+      enemy.x = enemyPosition.x;
+      enemy.y = enemyPosition.y;
     }
     enemy.cooldown -= dt;
     if (enemy.cooldown > 0) continue;
@@ -554,25 +583,48 @@ function serveStatic(req, res, pathname) {
 }
 
 const server = http.createServer(async (req, res) => {
-  if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
+    if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const parts = url.pathname.split('/').filter(Boolean);
   try {
     if (req.method === 'GET' && url.pathname === '/api/health') return send(res, 200, { ok: true, rooms: rooms.size });
+    if (req.method === 'GET' && url.pathname === '/api/groups') {
+      const now = Date.now();
+      const groups = [...rooms.values()]
+        .filter(room => room.mode === 'coop' && room.status === 'lobby' && room.players.some(player => isOnline(player, now)))
+        .map(room => {
+          const leader = room.players.find(player => player.id === room.hostId);
+          const playerCount = room.players.filter(player => isOnline(player, now)).length;
+          return {
+            id: room.id, name: room.partyName || 'Gather your champions',
+            visibility: room.visibility || 'private', status: room.status,
+            leaderName: leader?.name || 'Party leader', playerCount,
+            maxPlayers: 4, canJoin: room.visibility !== 'closed' && playerCount < 4
+          };
+        })
+        .sort((a, b) => a.name.localeCompare(b.name));
+      return send(res, 200, { groups });
+    }
     if (req.method === 'POST' && url.pathname === '/api/rooms') {
       const body = await readJson(req);
       const mode = body.mode === 'solo' ? 'solo' : 'coop';
       const playerId = String(body.playerId || newId()).slice(0, 80);
-      const code = makeCode();
-      const room = { code, mode, partyName: mode === 'coop' ? cleanPartyName(body.partyName) : '', status: 'lobby', hostId: playerId, players: [], game: null, lastActivity: Date.now() };
-      rooms.set(code, room);
+      const visibility = mode === 'coop' && body.visibility === 'public' ? 'public' : 'private';
+      const code = mode === 'coop' ? makeCode() : null;
+      const room = {
+        id: newId(), code, joinToken: mode === 'coop' ? newId() : null, mode,
+        visibility,
+        partyName: mode === 'coop' ? cleanPartyName(body.partyName) : '',
+        status: 'lobby', hostId: playerId, players: [], game: null, lastActivity: Date.now()
+      };
+      rooms.set(room.id, room);
       const player = addPlayer(room, playerId, body.name, body.hero);
       if (mode === 'solo') player.ready = true;
       return send(res, 201, { room: publicRoom(room, playerId), playerId });
     }
     if (parts[0] === 'api' && parts[1] === 'rooms' && parts[2]) {
-      const code = String(parts[2]).toUpperCase();
-      const room = getRoom(code);
+      const roomIdentifier = decodeURIComponent(parts[2]);
+      const room = getRoom(roomIdentifier);
       if (!room) return send(res, 404, { error: 'Room not found. Check the code and try again.' });
       if (req.method === 'GET' && parts.length === 3) {
         const playerId = String(url.searchParams.get('playerId') || '');
@@ -587,6 +639,20 @@ const server = http.createServer(async (req, res) => {
         const body = await readJson(req);
         const playerId = String(body.playerId || newId()).slice(0, 80);
         let player = room.players.find(p => p.id === playerId);
+        if (!player) {
+          if (room.mode !== 'coop') return send(res, 403, { error: 'Single-player runs cannot be joined.' });
+          if (room.visibility === 'closed') return send(res, 403, { error: 'This party is locked and is not accepting new players.' });
+          const linkAuthorized = roomIdentifier === room.joinToken && body.joinToken === room.joinToken;
+          if (room.visibility === 'public' && roomIdentifier !== room.id && !linkAuthorized) {
+            return send(res, 403, { error: 'Join this public party from Browse Groups.' });
+          }
+          if (room.visibility === 'private' && roomIdentifier.toUpperCase() !== room.code && !linkAuthorized) {
+            return send(res, 403, { error: 'Enter this party’s invite code to unlock it.' });
+          }
+          if (body.expectedRoomId && body.expectedRoomId !== room.id) {
+            return send(res, 403, { error: 'That code does not unlock this party.' });
+          }
+        }
         if (player) {
           player.lastSeen = Date.now();
           player.name = cleanName(body.name || player.name);
@@ -627,7 +693,12 @@ const server = http.createServer(async (req, res) => {
         player.lastSeen = Date.now();
         room.lastActivity = Date.now();
         const action = String(body.action || '');
-        if (action === 'character' && room.status === 'lobby') {
+        if (action === 'visibility') {
+          if (room.mode !== 'coop' || room.status !== 'lobby') return send(res, 409, { error: 'Party access can only be changed in a multiplayer lobby.' });
+          if (room.hostId !== player.id) return send(res, 403, { error: 'Only the host can change party access.' });
+          if (!['public', 'private', 'closed'].includes(body.value)) return send(res, 400, { error: 'Choose Public, Private, or Closed.' });
+          room.visibility = body.value;
+        } else if (action === 'character' && room.status === 'lobby') {
           const choice = body.value === '' || body.value == null ? null : body.value;
           if (choice !== null && choice !== 'Random' && !HEROES[choice]) return send(res, 400, { error: 'Unknown hero.' });
           if (HEROES[choice] && room.players.some(other => other.id !== player.id && other.hero === choice)) {
@@ -676,7 +747,7 @@ const server = http.createServer(async (req, res) => {
         } else if (action === 'leave') {
           room.players = room.players.filter(p => p.id !== player.id);
           moveHost(room);
-          if (!room.players.length) rooms.delete(code);
+          if (!room.players.length) rooms.delete(room.id);
           return send(res, 200, { ok: true, left: true });
         }
         moveHost(room);

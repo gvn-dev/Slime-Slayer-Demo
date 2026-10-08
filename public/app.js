@@ -2,10 +2,10 @@
   'use strict';
 
   const HEROES = [
-    { id: 'Ravela', role: 'Glass cannon · single-target archer', flavor: 'A deadly mark turns one clean shot into a finishing blow.', color: '#d8c7ef', art: 'Ravela character art.png' },
-    { id: 'Fjord', role: 'Armored tank · close-range cleave', flavor: 'Slow, sturdy, and happiest surrounded by enemies.', color: '#ec9b4b', art: 'Fjord character art.png' },
-    { id: 'Aram', role: 'Balanced duelist · parry and counter', flavor: 'A measured blade with a chance to stun attackers.', color: '#a4c5a1', art: 'Aram character art.png' },
-    { id: 'Gavrilta', role: 'Control mage · poison and roots', flavor: 'Green magic slows a crowd and wears it down over time.', color: '#82d66e', art: 'Gavrilla character art.png' }
+    { id: 'Ravela', role: 'Glass cannon · single-target archer', flavor: 'A deadly mark turns one clean shot into a finishing blow.', color: '#d8c7ef', art: 'Ravela character art.png', ability: 'Mark of Death', abilityDescription: 'Strike the nearest slime and mark it to take 25% more damage for a short time.', stats: { hp: 20, attack: 24, speed: 175, range: 340, interval: 0.62, regen: 1, defense: 0 } },
+    { id: 'Fjord', role: 'Armored tank · close-range cleave', flavor: 'Slow, sturdy, and happiest surrounded by enemies.', color: '#ec9b4b', art: 'Fjord character art.png', ability: 'Fire Breath', abilityDescription: 'Breathe fire in front of Fjord, damaging slimes in a wide cone.', stats: { hp: 85, attack: 31, speed: 112, range: 94, interval: 1.05, regen: 1, defense: 0 } },
+    { id: 'Aram', role: 'Balanced duelist · parry and counter', flavor: 'A measured blade with a chance to stun attackers.', color: '#a4c5a1', art: 'Aram character art.png', ability: 'Riposte', abilityDescription: 'Become briefly invulnerable and stun nearby slimes.', stats: { hp: 50, attack: 22, speed: 145, range: 96, interval: 0.62, regen: 1, defense: 0 } },
+    { id: 'Gavrilta', role: 'Control mage · poison and roots', flavor: 'Green magic slows a crowd and wears it down over time.', color: '#82d66e', art: 'Gavrilla character art.png', ability: 'Wild Growth', abilityDescription: 'Root nearby slimes and poison them over time.', stats: { hp: 30, attack: 15, speed: 130, range: 300, interval: 1.12, regen: 1, defense: 0 } }
   ];
   const UPGRADES = [
     { id: 'power', icon: '⚔', name: 'Keen Edge', text: '+20% attack damage' },
@@ -25,7 +25,12 @@
   let currentScreen = 'menu';
   let selectedHero = null;
   let playerName = localStorage.getItem('slime-slayer-name') || '';
-  let roomCode = localStorage.getItem('slime-slayer-room') || '';
+  let roomKey = localStorage.getItem('slime-slayer-room') || '';
+  let roomCode = localStorage.getItem('slime-slayer-room-code') || (/^[a-z0-9]{5}$/i.test(roomKey) ? roomKey : '');
+  let browseGroupsTimer = null;
+  let browseGroups = [];
+  let browseUnlockTarget = null;
+  const browseUnlockCodes = new Map();
   let lobbyKey = '';
   let pendingLobbyHeroChoice = null;
   let lobbyHeroSyncing = false;
@@ -131,6 +136,10 @@
   function setScreen(name) {
     currentScreen = name;
     if (name !== 'game') stopDrawing();
+    if (name !== 'browse-groups') {
+      clearInterval(browseGroupsTimer);
+      browseGroupsTimer = null;
+    }
   }
 
   function renderTitleScreen() {
@@ -151,14 +160,14 @@
           <header class="brand">
             <div class="brand-mark">✦</div>
             <h1>SLIME SLAYER</h1>
-            <div class="subtitle">Coliseum Run · Roguelike</div>
+            <div class="subtitle">Roguelike</div>
           </header>
-          <p class="intro">Hold the old arena against ten waves of slime. Choose a champion, survive together, and grow stronger after every round.</p>
+          <p class="intro"><span class="intro-lead">Hold the coliseum against a tsunami of slime!</span><span class="intro-support">Choose your champion to brave the tides alone or survive with your fellow adventurers.</span></p>
           <div class="mode-select">
             <button class="mode-card" data-action="solo"><span class="mode-symbol">⚔</span><span class="mode-title">Solo</span><span class="mode-caption">Singleplayer</span></button>
-            <button class="mode-card" data-action="party"><span class="mode-symbol">♟♟</span><span class="mode-title">Party</span><span class="mode-caption">Multiplayer</span></button>
+            <button class="mode-card" data-action="party"><span class="mode-symbol party-pawns" aria-hidden="true">♟♟♟♟</span><span class="mode-title">Party</span><span class="mode-caption">Multiplayer</span></button>
           </div>
-          <footer class="menu-foot">Up to four champions · No friendly fire · WASD / arrows to move · E to use your ability</footer>
+          <footer class="menu-foot">Up to four players · WASD / arrows / drag to move · E / tap button to use your ability.</footer>
         </div>
       </section>`;
     app.querySelector('[data-action="solo"]').addEventListener('click', () => { setHero(null); renderSoloSelect(); });
@@ -171,13 +180,15 @@
     app.innerHTML = `<section class="screen menu-screen sub-screen">${gearButton()}<div class="menu-wrap">
       <button class="back-link" data-action="back">← Back</button>
       <header class="brand compact-brand"><div class="brand-mark">✦</div><h1>PARTY</h1><div class="subtitle">Play together</div></header>
-      <p class="intro">Create a party and invite friends with its room code, or join a party that is already waiting.</p>
-      <div class="mode-select party-choice-grid"><button class="mode-card" data-action="create"><span class="mode-symbol">＋</span><span class="mode-title">Create a party</span><span class="mode-caption">Name your party and invite others</span></button>
+      <p class="intro">Create a private party with an invite code, open a public party, join by code, or browse groups.</p>
+      <div class="mode-select party-choice-grid"><button class="mode-card" data-action="create"><span class="mode-symbol">＋</span><span class="mode-title">Create a party</span><span class="mode-caption">Choose Private or Public</span></button>
       <button class="mode-card" data-action="join"><span class="mode-symbol">⌕</span><span class="mode-title">Join a party</span><span class="mode-caption">Enter a friend's five-character code</span></button></div>
+      <button class="mode-card browse-groups-card" data-action="browse"><span class="mode-symbol">◉</span><span><span class="mode-title">Browse Groups</span><span class="mode-caption">Find public parties or unlock a private one</span></span></button>
     </div></section>`;
     app.querySelector('[data-action="back"]').addEventListener('click', renderMenu);
     app.querySelector('[data-action="create"]').addEventListener('click', () => showPartyDialog('create'));
     app.querySelector('[data-action="join"]').addEventListener('click', () => showPartyDialog('join'));
+    app.querySelector('[data-action="browse"]').addEventListener('click', renderBrowseGroups);
     app.querySelector('[data-action="settings"]').addEventListener('click', showSettings);
   }
 
@@ -188,9 +199,10 @@
     modal.id = 'party-dialog';
     modal.innerHTML = `<form class="overlay-card party-dialog" id="party-dialog-form"><div class="eyebrow">${creating ? 'New party' : 'Join a party'}</div>
       <h2>${creating ? 'Name your party' : 'Enter the party code'}</h2>
-      <p class="small muted">${creating ? 'Your friends can join with the code shown in the lobby.' : 'Ask the party host for the five-character room code.'}</p>
+      <p class="small muted">${creating ? 'Choose Private for an invite code or Public to appear in Browse Groups.' : 'Ask the party host for the five-character room code.'}</p>
       <label class="dialog-label" for="party-dialog-input">${creating ? 'Party name' : 'Party code'}</label>
       <input class="text-input dialog-input ${creating ? '' : 'code-input'}" id="party-dialog-input" maxlength="${creating ? 28 : 5}" placeholder="${creating ? 'The Slime Slayers' : 'ABCDE'}" value="${creating ? '' : esc(roomCode)}" ${creating ? 'required' : 'required autocomplete="off"'}>
+      ${creating ? `<fieldset class="visibility-fieldset"><legend>Who can join?</legend><div class="visibility-options"><label class="visibility-option"><input type="radio" name="party-visibility" value="private" checked><span><strong>Private</strong><small>Show an invite code in your lobby</small></span></label><label class="visibility-option"><input type="radio" name="party-visibility" value="public"><span><strong>Public</strong><small>Appear in Browse Groups without a code</small></span></label></div></fieldset>` : ''}
       <div class="dialog-actions"><button class="btn quiet" type="button" data-action="cancel">Cancel</button><button class="btn" type="submit">${creating ? 'Create party' : 'Join party'}</button></div></form>`;
     document.body.append(modal);
     const input = modal.querySelector('input');
@@ -203,10 +215,112 @@
       event.preventDefault();
       const value = input.value.trim();
       if (!value) { input.focus(); return; }
+      const visibility = creating
+        ? modal.querySelector('input[name="party-visibility"]:checked')?.value || 'private'
+        : null;
       modal.remove();
-      if (creating) createRoom('coop', value);
+      if (creating) createRoom('coop', value, visibility);
       else joinRoom(value);
     });
+  }
+
+  function renderBrowseGroups() {
+    setScreen('browse-groups');
+    browseUnlockTarget = null;
+    browseGroups = [];
+    app.innerHTML = `<section class="screen browse-screen">${gearButton()}<div class="browse-panel">
+      <button class="back-link" data-action="back">← Back</button>
+      <header class="brand compact-brand"><div class="brand-mark">✦</div><h1>BROWSE GROUPS</h1><div class="subtitle">Find a party waiting in the coliseum</div></header>
+      <p class="intro">Join an open public party, or enter the invite code for a private group.</p>
+      <div class="group-filters">
+        <label class="group-filter">Search party or leader<input class="text-input" id="group-search" type="search" placeholder="Party name or leader" autocomplete="off"></label>
+        <label class="group-filter">Party size<select class="text-input" id="group-player-filter"><option value="any">Any number</option><option value="1">1 player</option><option value="2">2 players</option><option value="3">3 players</option><option value="4">4 players</option></select></label>
+        <label class="group-filter">Access<select class="text-input" id="group-visibility-filter"><option value="all">All access types</option><option value="public">Public only</option><option value="private">Private only</option><option value="closed">Closed only</option></select></label>
+      </div>
+      <div class="group-list-heading"><div class="small muted" id="group-results-count">Loading parties…</div><button class="btn quiet" type="button" data-action="refresh-groups">Refresh</button></div>
+      <div class="group-list" id="group-list" aria-live="polite"></div>
+    </div></section>`;
+    app.querySelector('[data-action="back"]').addEventListener('click', renderPartyChoice);
+    app.querySelector('[data-action="settings"]').addEventListener('click', showSettings);
+    app.querySelector('[data-action="refresh-groups"]').addEventListener('click', loadBrowseGroups);
+    app.querySelector('#group-search').addEventListener('input', renderGroupList);
+    app.querySelector('#group-player-filter').addEventListener('change', renderGroupList);
+    app.querySelector('#group-visibility-filter').addEventListener('change', renderGroupList);
+    clearInterval(browseGroupsTimer);
+    browseGroupsTimer = setInterval(loadBrowseGroups, 5000);
+    loadBrowseGroups();
+  }
+
+  async function loadBrowseGroups() {
+    if (currentScreen !== 'browse-groups') return;
+    try {
+      const result = await api('/api/groups', null, 'GET');
+      if (currentScreen !== 'browse-groups') return;
+      browseGroups = Array.isArray(result.groups) ? result.groups : [];
+      renderGroupList();
+    } catch (error) {
+      if (currentScreen !== 'browse-groups') return;
+      const list = document.querySelector('#group-list');
+      const count = document.querySelector('#group-results-count');
+      if (count) count.textContent = 'Could not load groups';
+      if (list) list.innerHTML = `<div class="empty-groups">${esc(error.message || 'Could not load groups. Try refreshing.')}</div>`;
+    }
+  }
+
+  function renderGroupList() {
+    const list = document.querySelector('#group-list');
+    const count = document.querySelector('#group-results-count');
+    if (!list || !count || currentScreen !== 'browse-groups') return;
+    const search = (document.querySelector('#group-search')?.value || '').trim().toLocaleLowerCase();
+    const playerFilter = document.querySelector('#group-player-filter')?.value || 'any';
+    const visibilityFilter = document.querySelector('#group-visibility-filter')?.value || 'all';
+    const filtered = browseGroups.filter(group => {
+      const matchesSearch = !search || `${group.name} ${group.leaderName}`.toLocaleLowerCase().includes(search);
+      const matchesPlayers = playerFilter === 'any' || Number(group.playerCount) === Number(playerFilter);
+      const matchesVisibility = visibilityFilter === 'all' || group.visibility === visibilityFilter;
+      return matchesSearch && matchesPlayers && matchesVisibility;
+    });
+    count.textContent = `${filtered.length} ${filtered.length === 1 ? 'party' : 'parties'} · refreshes automatically`;
+    const markup = filtered.length ? filtered.map(group => {
+      const privateGroup = group.visibility === 'private';
+      const closedGroup = group.visibility === 'closed';
+      const full = !group.canJoin && !closedGroup;
+      const action = closedGroup
+        ? '<button class="btn quiet" type="button" disabled>Party locked</button>'
+        : full
+        ? '<button class="btn quiet" type="button" disabled>Party full</button>'
+        : privateGroup
+          ? browseUnlockTarget === group.id
+            ? `<form class="group-unlock-form" data-private-unlock="${esc(group.id)}"><label for="unlock-${esc(group.id)}">Invite code</label><div><input class="text-input code-input group-code-input" id="unlock-${esc(group.id)}" name="code" maxlength="5" placeholder="ABCDE" autocomplete="off" required value="${esc(browseUnlockCodes.get(group.id) || '')}"><button class="btn" type="submit">Unlock &amp; join</button></div></form>`
+            : `<button class="btn quiet" type="button" data-unlock-group="${esc(group.id)}">Enter code to unlock</button>`
+          : `<button class="btn" type="button" data-join-group="${esc(group.id)}">Join public party</button>`;
+      const lockedGroup = privateGroup || closedGroup;
+      const accessLabel = closedGroup ? 'Closed · Locked' : privateGroup ? 'Private · Locked' : 'Public';
+      return `<article class="group-card ${lockedGroup ? 'group-card-private' : ''}"><div class="group-card-info"><div class="group-card-title-row"><h2>${esc(group.name)}</h2><span class="group-access-badge ${lockedGroup ? 'private' : 'public'}">${accessLabel}</span></div><div class="group-card-details"><span>Leader: <strong>${esc(group.leaderName)}</strong></span><span>${group.playerCount}/${group.maxPlayers} players</span><span>Waiting for players</span></div></div><div class="group-card-action">${action}</div></article>`;
+    }).join('') : '<div class="empty-groups">No parties match those filters right now.</div>';
+    if (list.contains(document.activeElement) && document.activeElement.matches('.group-code-input')) return;
+    if (list.innerHTML !== markup) {
+      list.innerHTML = markup;
+      list.querySelectorAll('[data-join-group]').forEach(button => button.addEventListener('click', () => joinRoom(button.dataset.joinGroup, { publicJoin: true })));
+      list.querySelectorAll('[data-unlock-group]').forEach(button => button.addEventListener('click', () => {
+        browseUnlockTarget = button.dataset.unlockGroup;
+        renderGroupList();
+        list.querySelector('.group-code-input')?.focus();
+      }));
+      list.querySelectorAll('.group-unlock-form').forEach(form => {
+        const input = form.querySelector('input[name="code"]');
+        input.addEventListener('input', () => {
+          input.value = input.value.replace(/[^a-z0-9]/gi, '').toUpperCase().slice(0, 5);
+          browseUnlockCodes.set(form.dataset.privateUnlock, input.value);
+        });
+        form.addEventListener('submit', event => {
+          event.preventDefault();
+          const code = input.value.trim();
+          if (code.length !== 5) { input.focus(); return; }
+          joinRoom(code, { expectedRoomId: form.dataset.privateUnlock });
+        });
+      });
+    }
   }
 
   function renderSoloSelect() {
@@ -214,7 +328,7 @@
     app.innerHTML = `<section class="screen solo-screen">${gearButton()}<div class="solo-wrap">
       <button class="back-link" data-action="back">← Back</button>
       <header class="brand compact-brand"><div class="brand-mark">✦</div><h1>CHOOSE YOUR HERO</h1><div class="subtitle">Solo challenge</div></header>
-      <p class="intro">Pick a champion for your ten-wave run. Each hero brings a different weapon and ability.</p>
+      <p class="intro">Select your champion. Each hero has a unique weapon and ability.</p>
       <div class="solo-hero-grid">${HEROES.map(h => heroCard(h, false)).join('')}</div>
       <div class="solo-specials"><button class="special-choice ${selectedHero === 'Random' ? 'selected' : ''}" data-select-hero="Random"><span class="random-mark">?</span><span><strong>Random</strong><small>Let fate choose your champion</small></span></button></div>
       <div class="solo-bottom"><label class="sr-only" for="solo-player-name">Your name</label><input id="solo-player-name" class="text-input solo-name" maxlength="18" placeholder="Your name" value="${esc(playerName)}">
@@ -241,35 +355,62 @@
     renderSoloSelect();
   }
 
-  async function createRoom(mode, partyName = '') {
+  function rememberRoomIdentity(room) {
+    const nextKey = room?.id || room?.code || '';
+    if (nextKey) roomKey = nextKey;
+    if (roomKey && localStorage.getItem('slime-slayer-room') !== roomKey) localStorage.setItem('slime-slayer-room', roomKey);
+    const nextCode = room?.mode === 'coop' && room?.visibility !== 'public' ? room?.code || '' : '';
+    roomCode = nextCode;
+    if (nextCode && localStorage.getItem('slime-slayer-room-code') !== nextCode) localStorage.setItem('slime-slayer-room-code', nextCode);
+    else if (!nextCode && localStorage.getItem('slime-slayer-room-code')) localStorage.removeItem('slime-slayer-room-code');
+  }
+  function clearRoomIdentity() {
+    roomKey = '';
+    roomCode = '';
+    localStorage.removeItem('slime-slayer-room');
+    localStorage.removeItem('slime-slayer-room-code');
+  }
+  async function createRoom(mode, partyName = '', visibility = 'private') {
     persistName(app.querySelector('#solo-player-name')?.value || playerName);
     try {
-      const result = await api('/api/rooms', { playerId, name: playerName, hero: mode === 'solo' ? selectedHero : null, partyName, mode });
+      const result = await api('/api/rooms', { playerId, name: playerName, hero: mode === 'solo' ? selectedHero : null, partyName, mode, visibility });
       currentRoom = result.room;
-      roomCode = currentRoom.code;
-      localStorage.setItem('slime-slayer-room', roomCode);
+      rememberRoomIdentity(currentRoom);
       startPolling();
       if (mode === 'solo') {
         await act('start');
       } else renderLobby(true);
     } catch (error) { toastError(error); }
   }
-  async function joinRoom(code) {
-    const normalized = String(code || '').replace(/[^a-z0-9]/gi, '').toUpperCase().slice(0, 5);
-    if (normalized.length !== 5) { showToast('Enter the five-character room code.'); return; }
+  async function joinRoom(identifier, options = {}) {
+    const publicJoin = Boolean(options.publicJoin);
+    const inviteJoin = Boolean(options.inviteToken);
+    const key = publicJoin || inviteJoin
+      ? String(identifier || '')
+      : String(identifier || '').replace(/[^a-z0-9]/gi, '').toUpperCase().slice(0, 5);
+    if (!publicJoin && !inviteJoin && key.length !== 5) { showToast('Enter the five-character room code.'); return; }
+    if (publicJoin && !key) return;
+    if (inviteJoin && !key) return;
     try {
-      const result = await api(`/api/rooms/${normalized}/join`, { playerId, name: playerName, hero: null });
+      const expectedRoomId = options.expectedRoomId || (publicJoin ? key : '');
+      const result = await api(`/api/rooms/${encodeURIComponent(key)}/join`, {
+        playerId, name: playerName, hero: null,
+        ...(inviteJoin ? { joinToken: key } : {}),
+        ...(expectedRoomId ? { expectedRoomId } : {})
+      });
       currentRoom = result.room;
-      roomCode = currentRoom.code;
-      localStorage.setItem('slime-slayer-room', roomCode);
+      rememberRoomIdentity(currentRoom);
       startPolling();
       renderLobby(true);
-    } catch (error) { toastError(error); }
+    } catch (error) {
+      if (inviteJoin) renderTitleScreen();
+      toastError(error);
+    }
   }
   async function act(action, value) {
-    if (!roomCode) return;
+    if (!roomKey) return;
     try {
-      const result = await api(`/api/rooms/${roomCode}/action`, { playerId, action, value });
+      const result = await api(`/api/rooms/${encodeURIComponent(roomKey)}/action`, { playerId, action, value });
       if (result.room) acceptRoom(result.room);
       return result;
     } catch (error) { if (action !== 'move') toastError(error); throw error; }
@@ -280,11 +421,11 @@
     poll();
   }
   async function poll() {
-    if (polling || !roomCode || !playerId) return;
+    if (polling || !roomKey || !playerId) return;
     polling = true;
     const pollStartedAt = performance.now();
     try {
-      const result = await api(`/api/rooms/${roomCode}?playerId=${encodeURIComponent(playerId)}`, null, 'GET');
+      const result = await api(`/api/rooms/${encodeURIComponent(roomKey)}?playerId=${encodeURIComponent(playerId)}`, null, 'GET');
       // A GET that began before our character action was acknowledged may contain
       // the previous hero. Keep the immediate local choice until a later GET sees it.
       const preserveLobbyHero = currentScreen === 'lobby' && pollStartedAt < lobbyHeroActionAckAt;
@@ -292,7 +433,7 @@
     } catch (error) {
       if (currentScreen === 'quitting') return;
       clearInterval(pollHandle);
-      if (currentScreen !== 'menu') { localStorage.removeItem('slime-slayer-room'); roomCode = ''; currentRoom = null; renderMenu(); }
+      if (currentScreen !== 'menu') { clearRoomIdentity(); currentRoom = null; renderMenu(); }
       showToast(error.message || 'Room connection lost.');
     } finally { polling = false; }
   }
@@ -314,6 +455,7 @@
     }
     recordSnapshot(room);
     currentRoom = room;
+    rememberRoomIdentity(room);
     if (room.status === 'playing') {
       if (currentScreen !== 'game') enterGame();
       else updateGameUI();
@@ -374,7 +516,7 @@
   }
   function lobbySignature() {
     if (!currentRoom) return '';
-    return JSON.stringify({ code: currentRoom.code, status: currentRoom.status, host: currentRoom.hostId,
+    return JSON.stringify({ id: currentRoom.id, code: currentRoom.code, visibility: currentRoom.visibility, status: currentRoom.status, host: currentRoom.hostId,
       players: currentRoom.players.map(p => [p.id, p.name, p.hero, p.ready, p.online]) });
   }
   function updateLobby(force = false) {
@@ -388,7 +530,7 @@
     if (!panel) return;
     const slots = Array.from({ length: 4 }, (_, index) => {
       const p = currentRoom.players[index];
-      if (!p) return `<article class="party-slot vacant-slot"><div class="slot-heading"><span>PLAYER ${index + 1}</span><span>OPEN</span></div><div class="slot-portrait empty-portrait"><span>＋</span></div><div class="vacant-title">Open seat</div><div class="vacant-copy">Share your party code<br>to invite a player</div><div class="slot-status">Waiting to join</div></article>`;
+      if (!p) return `<article class="party-slot vacant-slot"><div class="slot-heading"><span>PLAYER ${index + 1}</span><span>OPEN</span></div><div class="slot-portrait empty-portrait"><span>＋</span></div><div class="vacant-title">Open seat</div><div class="vacant-copy">${currentRoom.visibility === 'public' ? 'Find this party in<br>Browse Groups' : currentRoom.visibility === 'closed' ? 'Party is closed<br>to new players' : 'Share your party code<br>to invite a player'}</div><div class="slot-status">Waiting to join</div></article>`;
       const isSelf = p.id === playerId;
       const h = HEROES.find(character => character.id === p.hero);
       const heroFace = h
@@ -417,17 +559,39 @@
     const canStart = onlinePlayers.length > 0 && onlinePlayers.every(p => p.ready && p.hero);
     const nameEditing = document.activeElement?.id === 'lobby-player-name';
     const nameSelection = nameEditing ? document.activeElement.selectionStart : null;
+    const accessNames = { public: 'Public', private: 'Private', closed: 'Closed' };
+    const currentAccessName = accessNames[currentRoom.visibility] || 'Private';
+    const partyAccessBar = currentRoom.visibility === 'public'
+      ? `<div class="party-public-banner"><strong>Public party</strong><span>Anyone can find this group in Browse Groups · No invite code</span></div>`
+      : currentRoom.visibility === 'closed'
+        ? `<div class="party-public-banner party-closed-banner"><strong>Party closed</strong><span>New players cannot join until the host reopens it.</span></div>`
+        : `<div class="party-code-bar"><div class="room-code-label">Invite friends with this code</div><div class="party-code-share"><div class="room-code">${esc(currentRoom.code)}</div><button class="btn quiet" data-action="copy">Copy code</button></div></div>`;
+    const accessControl = isHost
+      ? `<div class="party-access-menu"><button class="btn quiet party-access-trigger" type="button" data-action="toggle-access" aria-expanded="false">Access: ${currentAccessName} <span aria-hidden="true">▾</span></button><div class="party-access-options" hidden><div class="party-access-heading">Who can join?</div>${[['public','Public','Listed in Browse Groups'],['private','Private','Code or invite link required'],['closed','Closed','Block all new players']].map(([value,label,detail]) => `<button type="button" class="party-access-option ${currentRoom.visibility === value ? 'selected' : ''}" data-party-access="${value}" ${currentRoom.visibility === value ? 'aria-current="true"' : ''}><strong>${label}</strong><small>${detail}</small></button>`).join('')}</div></div>`
+      : `<span class="party-access-readonly">Access: ${currentAccessName}</span>`;
     panel.innerHTML = `
+      <div class="party-lobby-toolbar">${accessControl}<button class="btn quiet" type="button" data-action="copy-link">Copy invite link</button></div>
       <div class="eyebrow" style="text-align:center">YOUR PARTY</div>
       <h1 class="lobby-title">${esc(currentRoom.partyName || 'Gather your champions')}</h1>
-      <div class="party-code-bar"><div><div class="room-code-label">Invite friends with this code</div><div class="room-code">${currentRoom.code}</div></div><button class="btn quiet" data-action="copy">Copy code</button></div>
+      ${partyAccessBar}
       <div class="party-progress"><span>${currentRoom.players.length}/4 joined</span><span>Choose a hero and ready up</span></div>
       <div class="party-slot-grid">${slots}</div>
-      <div class="lobby-actions"><span class="lobby-note">${isHost ? 'The host can start once everyone online is ready.' : 'The host will start the run when the party is ready.'}</span>
+      <div class="lobby-actions"><span class="lobby-note">${isHost ? 'The host can start once everyone is ready.' : 'The host will start the run when the party is ready.'}</span>
         <div class="lobby-action-buttons"><button class="btn quiet" data-action="leave">Leave party</button><button class="btn secondary" data-action="ready" ${(HEROES.some(character => character.id === self?.hero) || self?.hero === 'Random') ? '' : 'disabled'}>${self?.ready ? 'Cancel ready' : 'Ready up'}</button>${isHost ? `<button class="btn" data-action="start" ${canStart ? '' : 'disabled'}>Start the run</button>` : ''}</div>
       </div>`;
     panel.querySelectorAll('[data-step]').forEach(button => button.addEventListener('click', () => stepLobbyCharacter(Number(button.dataset.step))));
-    panel.querySelector('[data-action="copy"]').addEventListener('click', copyCode);
+    panel.querySelector('[data-action="copy"]')?.addEventListener('click', copyCode);
+    panel.querySelector('[data-action="copy-link"]')?.addEventListener('click', copyJoinLink);
+    const accessTrigger = panel.querySelector('[data-action="toggle-access"]');
+    accessTrigger?.addEventListener('click', () => {
+      const options = panel.querySelector('.party-access-options');
+      const opening = options.hidden;
+      options.hidden = !opening;
+      accessTrigger.setAttribute('aria-expanded', String(opening));
+    });
+    panel.querySelectorAll('[data-party-access]').forEach(button => button.addEventListener('click', async () => {
+      try { await act('visibility', button.dataset.partyAccess); } catch { /* access update error is shown by act */ }
+    }));
     panel.querySelector('[data-action="ready"]').addEventListener('click', () => act('ready', !self?.ready));
     panel.querySelector('[data-action="leave"]').addEventListener('click', leaveRoom);
     panel.querySelector('[data-action="start"]')?.addEventListener('click', async () => { try { await act('start'); } catch { /* inline toast already shown */ } });
@@ -514,14 +678,35 @@
     updateLobby();
   }
   async function copyCode() {
+    if (!currentRoom?.code) return;
     try { await navigator.clipboard.writeText(currentRoom.code); showToast(`Room code ${currentRoom.code} copied.`); }
     catch { showToast(`Share room code: ${currentRoom.code}`); }
+  }
+  async function copyJoinLink() {
+    if (!currentRoom?.joinToken) { showToast('The invite link is unavailable for this party.'); return; }
+    const link = `${window.location.origin}${window.location.pathname}?invite=${encodeURIComponent(currentRoom.joinToken)}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      showToast(currentRoom.visibility === 'closed' ? 'Invite link copied; it will work if the host reopens the party.' : 'Code-free invite link copied.');
+    } catch {
+      const fallback = document.createElement('textarea');
+      fallback.value = link;
+      fallback.setAttribute('readonly', '');
+      fallback.style.position = 'fixed';
+      fallback.style.opacity = '0';
+      document.body.append(fallback);
+      fallback.select();
+      const copied = document.execCommand('copy');
+      fallback.remove();
+      showToast(copied
+        ? (currentRoom.visibility === 'closed' ? 'Invite link copied; it will work if the host reopens the party.' : 'Code-free invite link copied.')
+        : `Copy this invite link: ${link}`);
+    }
   }
   async function leaveRoom() {
     try { await act('leave'); } catch { /* room might already be gone */ }
     clearInterval(pollHandle);
-    roomCode = ''; currentRoom = null;
-    localStorage.removeItem('slime-slayer-room');
+    clearRoomIdentity(); currentRoom = null;
     renderMenu();
   }
 
@@ -536,9 +721,8 @@
     smoothedMoveVector = { x: 0, y: 0 };
     try { await act('leave'); } catch { /* Clear the local run even if the room has already expired. */ }
     snapshots = [];
-    roomCode = '';
+    clearRoomIdentity();
     currentRoom = null;
-    localStorage.removeItem('slime-slayer-room');
     renderTitleScreen();
   }
 
@@ -558,26 +742,26 @@
           <div class="game-brand">SLIME SLAYER</div>
           <div class="wave-block"><div class="wave-value" id="wave-label">Wave 1 / 10</div></div>
           <div class="progress-wrap"><div class="progress-label"><span id="progress-copy">The slimes are gathering</span><span id="enemy-count">0 enemies</span></div><div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div></div>
-          <div class="top-stats"><span id="fps-counter" title="Rendered frames per second">-- FPS</span><span>☠ <strong id="kill-count">0</strong></span><span class="score-stat" title="${solo ? 'Score' : 'Party score'}">✦ <strong id="team-score">0</strong></span></div>
+          <div class="top-stats"><span id="fps-counter" title="Rendered frames per second">-- FPS</span></div>
           <button class="icon-btn gear-icon" title="Settings and controls" aria-label="Settings and controls" data-action="help">⚙</button>
         </header>
         <div class="game-body">
           <div class="arena-wrap"><canvas id="arena-background" aria-hidden="true"></canvas><canvas id="arena" aria-label="Top-down slime arena"></canvas>
             <div class="mobile-pad" id="mobile-pad" aria-label="Move your champion"></div>
-            <button class="mobile-ability" id="mobile-ability">ABILITY</button>
             <div class="overlay" id="game-overlay" hidden></div>
           </div>
           <aside class="side-panel">
-            <section class="side-card"><div class="side-title">${solo ? 'Your champion' : 'The party'}</div><div id="party-status"></div></section>
-            <section class="side-card"><div class="side-title">Arena radar</div><div class="minimap" id="minimap"></div></section>
-            <section class="side-card controls-card"><div class="side-title">Controls</div><div class="controls-line"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move</div><div class="controls-line"><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> Move</div><div class="controls-line"><kbd>E</kbd> Champion ability</div><div class="controls-line muted">Attacks happen automatically.</div></section>
+            <section class="side-card radar-card"><div class="side-title">Arena Radar</div><div class="minimap" id="minimap"></div></section>
+            <section class="side-card"><div class="side-title">Champion Stats</div><div id="party-status"></div></section>
+            <section class="side-card run-totals-card"><div class="side-title">Run Stats</div><div class="run-total"><span>Kills:</span><strong id="kill-count">0</strong></div><div class="run-total"><span>Damage Done:</span><strong id="team-damage">0</strong></div><div class="run-total"><span>${solo ? 'Score:' : 'Party Score:'}</span><strong id="team-score">0</strong></div></section>
+            <section class="side-card controls-card"><div class="side-title">Controls</div><div class="controls-line"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move</div><div class="controls-line"><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> Move</div><div class="controls-line"><kbd>E</kbd> Champion ability</div><div class="controls-line muted">Get in range to attack</div></section>
+            <section class="side-card ability-card"><div class="side-title">Special Ability</div><div class="ability-name" id="ability-name">${esc(getSelf()?.abilityName || hero(getSelf()?.hero).ability)}</div><p class="ability-description" id="ability-description">${esc(hero(getSelf()?.hero).abilityDescription)}</p><div class="ability-cooldown-row"><span>Cooldown</span><strong id="ability-cooldown">10s</strong></div><button class="ability-chip sidebar-ability" id="ability-chip" type="button">E · ${esc(getSelf()?.abilityName || 'Ability')}</button></section>
           </aside>
         </div>
-        <footer class="game-bottombar"><span id="hero-hud">${hero(getSelf()?.hero).id}</span><span class="muted">${solo ? 'Solo · SURVIVE' : 'No friendly fire · revive between waves'}</span><button class="ability-chip" id="ability-chip">E · ${esc(getSelf()?.abilityName || 'Ability')}</button></footer>
+        <footer class="game-bottombar"><div class="hero-hud-group"><span id="hero-hud">${hero(getSelf()?.hero).id}</span><div class="hero-hp-track" id="hero-hp-track" role="progressbar" aria-label="Champion HP" aria-valuemin="0" aria-valuemax="${getSelf()?.maxHp || 100}" aria-valuenow="${Math.max(0, Math.ceil(getSelf()?.hp ?? 0))}"><div class="hero-hp-fill" id="hero-hp-fill" style="width:100%"></div></div></div><span class="muted">${solo ? 'Solo · SURVIVE' : 'Multiplayer · SURVIVE'}</span></footer>
       </section>`;
     document.querySelector('[data-action="help"]').addEventListener('click', showSettings);
     document.querySelector('#ability-chip').addEventListener('click', () => act('ability'));
-    document.querySelector('#mobile-ability').addEventListener('click', () => act('ability'));
     setupMobilePad();
     warmSlimeSprites();
     startDrawing();
@@ -634,37 +818,39 @@
     canvasResizeObserver = null;
   }
   function drawArenaBackground(ctx, width, height) {
-    const scale = Math.min(width / 1200, height / 760);
+    const scale = Math.min(width / 1200, height / 1200);
     const ox = (width - 1200 * scale) / 2;
-    const oy = (height - 760 * scale) / 2;
+    const oy = (height - 1200 * scale) / 2;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = '#262329'; ctx.fillRect(0, 0, width, height);
     ctx.setTransform(scale, 0, 0, scale, ox, oy);
-    const g = ctx.createLinearGradient(0, 0, 1200, 760);
+    const g = ctx.createLinearGradient(0, 0, 1200, 1200);
     g.addColorStop(0, '#49403c'); g.addColorStop(.48, '#393538'); g.addColorStop(1, '#29272d');
-    ctx.fillStyle = g; ctx.fillRect(0, 0, 1200, 760);
-    // Stonework and the coliseum's old circular fighting floor.
+    ctx.fillStyle = g; ctx.fillRect(0, 0, 1200, 1200);
+    // Stonework around the circular coliseum floor.
     ctx.strokeStyle = 'rgba(13,12,15,.23)'; ctx.lineWidth = 1;
-    for (let x = 18; x < 1200; x += 58) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 760); ctx.stroke(); }
-    for (let y = 18; y < 760; y += 52) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(1200, y); ctx.stroke(); }
+    for (let x = 18; x < 1200; x += 58) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 1200); ctx.stroke(); }
+    for (let y = 18; y < 1200; y += 52) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(1200, y); ctx.stroke(); }
     ctx.fillStyle = 'rgba(178,132,79,.045)';
-    for (let i = 0; i < 55; i++) {
-      const x = (i * 197 + 63) % 1180 + 10, y = (i * 113 + 37) % 740 + 10;
+    for (let i = 0; i < 90; i++) {
+      const x = (i * 197 + 63) % 1180 + 10, y = (i * 113 + 37) % 1180 + 10;
       ctx.beginPath(); ctx.ellipse(x, y, 2 + i % 5, 1.4 + i % 3, i * .31, 0, Math.PI * 2); ctx.fill();
     }
-    ctx.save(); ctx.translate(600, 380);
+    ctx.save(); ctx.translate(600, 600);
+    ctx.beginPath(); ctx.rect(-600, -600, 1200, 1200); ctx.arc(0, 0, 565, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(14,13,17,.38)'; ctx.fill('evenodd');
     ctx.strokeStyle = 'rgba(213,173,115,.23)'; ctx.lineWidth = 5;
-    ctx.beginPath(); ctx.ellipse(0, 0, 510, 310, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, 510, 0, Math.PI * 2); ctx.stroke();
     ctx.strokeStyle = 'rgba(17,15,18,.38)'; ctx.lineWidth = 26;
-    ctx.beginPath(); ctx.ellipse(0, 0, 565, 350, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, 565, 0, Math.PI * 2); ctx.stroke();
     ctx.strokeStyle = 'rgba(226,187,123,.25)'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.ellipse(0, 0, 430, 260, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, 430, 0, Math.PI * 2); ctx.stroke();
     ctx.strokeStyle = 'rgba(226,187,123,.13)'; ctx.lineWidth = 1;
     for (let i = 0; i < 24; i++) {
-      const a = Math.PI * 2 * i / 24; ctx.beginPath(); ctx.moveTo(Math.cos(a) * 440, Math.sin(a) * 270); ctx.lineTo(Math.cos(a) * 505, Math.sin(a) * 306); ctx.stroke();
+      const a = Math.PI * 2 * i / 24; ctx.beginPath(); ctx.moveTo(Math.cos(a) * 440, Math.sin(a) * 440); ctx.lineTo(Math.cos(a) * 505, Math.sin(a) * 505); ctx.stroke();
     }
-    ctx.fillStyle = 'rgba(219,175,111,.07)'; ctx.beginPath(); ctx.ellipse(0, 0, 235, 145, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = 'rgba(230,192,139,.18)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(0, 0, 235, 145, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = 'rgba(219,175,111,.07)'; ctx.beginPath(); ctx.arc(0, 0, 235, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(230,192,139,.18)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, 235, 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
     drawArenaPillars(ctx);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -672,9 +858,9 @@
   function drawArena(ctx, width, height, frame) {
     const room = frame?.room || currentRoom;
     if (!room) return;
-    const scale = Math.min(width / 1200, height / 760);
+    const scale = Math.min(width / 1200, height / 1200);
     const ox = (width - 1200 * scale) / 2;
-    const oy = (height - 760 * scale) / 2;
+    const oy = (height - 1200 * scale) / 2;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, width, height);
     ctx.setTransform(scale, 0, 0, scale, ox, oy);
@@ -787,7 +973,10 @@
     }
   }
   function drawArenaPillars(ctx) {
-    const pillars = [[72,72],[1128,72],[72,688],[1128,688],[600,48],[600,712],[44,380],[1156,380]];
+    const pillars = Array.from({ length: 8 }, (_, i) => {
+      const angle = -Math.PI / 2 + i * Math.PI / 4;
+      return [600 + Math.cos(angle) * 535, 600 + Math.sin(angle) * 535];
+    });
     for (const [x,y] of pillars) {
       ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(x+4,y+6,20,13,0,0,Math.PI*2); ctx.fill();
       const g = ctx.createLinearGradient(x-13,y-13,x+13,y+13); g.addColorStop(0,'#756456'); g.addColorStop(.48,'#4c4545'); g.addColorStop(1,'#302e33');
@@ -894,12 +1083,16 @@
     const total=g.waveDuration||20; const progress=g.phase==='wave'?Math.min(100,g.waveElapsed/total*100):g.phase==='upgrade'?100:100;
     const fill=document.querySelector('#progress-fill'); if(fill) fill.style.width=`${progress}%`;
     const copy=document.querySelector('#progress-copy');
-    if(copy) copy.textContent=g.phase==='upgrade'?'Choose an upgrade':g.phase==='won'?'The arena is clear':g.phase==='lost'?(currentRoom.mode==='solo'?'You have fallen':'The party has fallen'):`Survive the wave · ${Math.max(0,Math.ceil(total-g.waveElapsed))}s`;
+    if(copy) copy.textContent=g.phase==='upgrade'?'Choose an upgrade':g.phase==='won'?'The arena is clear':g.phase==='lost'?(currentRoom.mode==='solo'?'You have fallen':'The party has fallen'):`Survive the slime. ${Math.max(0,Math.ceil(total-g.waveElapsed))}s`;
     const count=document.querySelector('#enemy-count'); if(count) count.textContent=`${g.enemies.length} ${g.enemies.length===1?'enemy':'enemies'}`;
     const kills=document.querySelector('#kill-count'); if(kills) kills.textContent=g.teamKills;
+    const damage=document.querySelector('#team-damage'); if(damage) damage.textContent=Math.round(g.teamDamage||0);
     const score=document.querySelector('#team-score'); if(score) score.textContent=Math.round((currentRoom.players||[]).reduce((sum,p)=>sum+p.score,0));
     const status=document.querySelector('#party-status');
-    const statusMarkup=visualPlayers.map(p=>`<div class="party-row"><div class="party-dot" style="color:${hero(p.hero).color}">${p.hero[0]}</div><span>${esc(p.name)}${p.id===playerId?' · you':''}</span><strong>${Math.max(0,Math.ceil(p.hp))}</strong><div class="hp-track"><div class="hp-fill" style="width:${p.maxHp?Math.max(0,Math.round(p.hp/p.maxHp*100)):0}%;background:${p.alive?'#79bb70':'#e76850'}"></div></div></div>`).join('');
+    const statusMarkup=visualPlayers.map(p=>{
+      const profile=hero(p.hero); const stats=profile.stats;
+      return `<div class="party-row"><div class="party-row-heading"><div class="party-dot" style="color:${profile.color}">${profile.id[0]}</div><div class="party-player-name"><strong>${esc(p.name)}${p.id===playerId?' [You]':''}</strong><small>${esc(profile.id)}</small></div><span class="party-hp">HP ${Math.max(0,Math.ceil(p.hp))}/${p.maxHp}</span></div><div class="hp-track"><div class="hp-fill" style="width:${p.maxHp?Math.max(0,Math.round(p.hp/p.maxHp*100)):0}%;background:${p.alive?'#79bb70':'#e76850'}"></div></div><div class="hero-stat-line"><span><small>Attack:</small> <strong>${stats.attack}</strong></span><span><small>Range:</small> <strong>${stats.range}</strong></span><span><small>Speed:</small> <strong>${stats.speed}</strong></span><span><small>Attack Speed:</small> <strong>${(1/stats.interval).toFixed(1)}/s</strong></span><span><small>Regen:</small> <strong>${stats.regen} HP/20s</strong></span><span><small>Defense:</small> <strong>${stats.defense}</strong></span></div><div class="player-run-line"><span>Damage Done: ${Math.round(p.damage||0)}</span><span>Kills: ${p.kills||0}</span>${currentRoom.mode==='coop'?`<span>Deaths: ${p.deaths||0}</span>`:''}</div></div>`;
+    }).join('');
     if(status && statusMarkup!==lastPartyStatusMarkup) { status.innerHTML=statusMarkup; lastPartyStatusMarkup=statusMarkup; }
     const mini=document.querySelector('#minimap');
     const now=performance.now();
@@ -917,12 +1110,35 @@
           mini.append(dot); minimapDots.set(item.key,dot);
         }
         dot.style.color=item.color; dot.style.background=item.color;
-        dot.style.left=`${item.entity.x/1200*100}%`; dot.style.top=`${item.entity.y/760*100}%`;
+        dot.style.left=`${item.entity.x/1200*100}%`; dot.style.top=`${item.entity.y/1200*100}%`;
       }
     }
-    const chip=document.querySelector('#ability-chip');
-    if(chip&&self){const left=Math.ceil(self.abilityCooldown);chip.textContent=left>0?`${left}s · ${self.abilityName||'Ability'}`:`E · ${self.abilityName||'Ability'}`;chip.classList.toggle('ready',left<=0&&self.alive);}
-    const heroHud=document.querySelector('#hero-hud'); if(heroHud&&visualSelf) heroHud.textContent=`${visualSelf.hero} · ${Math.max(0,Math.ceil(visualSelf.hp))}/${visualSelf.maxHp} HP`;
+    if(self){
+      const abilityProfile=hero(self.hero);
+      const abilityName=self.abilityName||abilityProfile.ability||'Ability';
+      const abilityNameNode=document.querySelector('#ability-name'); if(abilityNameNode) abilityNameNode.textContent=abilityName;
+      const abilityDescription=document.querySelector('#ability-description'); if(abilityDescription) abilityDescription.textContent=abilityProfile.abilityDescription||'';
+      const abilityCooldown=document.querySelector('#ability-cooldown'); if(abilityCooldown) abilityCooldown.textContent=`${(10*(self.buff?.cooldown||1)).toFixed(1).replace(/\.0$/,'')}s`;
+      const chip=document.querySelector('#ability-chip');
+      if(chip){const left=Math.ceil(self.abilityCooldown);chip.textContent=left>0?`${left}s · ${abilityName}`:`E · ${abilityName}`;chip.classList.toggle('ready',left<=0&&self.alive);chip.disabled=left>0||!self.alive;}
+    }
+    const heroHud=document.querySelector('#hero-hud');
+    const heroHpTrack=document.querySelector('#hero-hp-track');
+    const heroHpFill=document.querySelector('#hero-hp-fill');
+    if(heroHud&&visualSelf) {
+      const hp=Math.max(0,Math.ceil(visualSelf.hp));
+      const maxHp=Math.max(1,visualSelf.maxHp||1);
+      const hpRatio=Math.max(0,Math.min(1,visualSelf.hp/maxHp));
+      heroHud.textContent=`${visualSelf.hero} · ${hp}/${visualSelf.maxHp} HP`;
+      if(heroHpTrack) {
+        heroHpTrack.setAttribute('aria-valuemax',String(maxHp));
+        heroHpTrack.setAttribute('aria-valuenow',String(hp));
+      }
+      if(heroHpFill) {
+        heroHpFill.style.width=`${hpRatio*100}%`;
+        heroHpFill.style.background=hpRatio>.55?'#83cb77':hpRatio>.3?'#e6ba62':'#ef7260';
+      }
+    }
     updateOverlay();
   }
   function updateOverlay() {
@@ -946,11 +1162,16 @@
     } else if(g.phase==='won'||g.phase==='lost') {
       node.hidden=false;
       const solo=currentRoom.mode==='solo';
-      const score=Math.round((currentRoom.players||[]).reduce((sum,p)=>sum+p.score,0));
+      const players=currentRoom.players||[];
+      const score=Math.round(players.reduce((sum,p)=>sum+p.score,0));
       const kills=g.teamKills||0;
-      const survivalCopy=solo?'You survived '+(g.completedWaves||0)+' complete waves.':'Your party survived '+(g.completedWaves||0)+' complete waves.';
-      const runLabel=solo?(g.phase==='won'?'Solo · Victory':'Solo · Run Ended'):`Party run · ${g.phase==='won'?'victory':'run ended'}`;
-      node.innerHTML=`<div class="overlay-card"><div class="eyebrow">${runLabel}</div><h2>${g.phase==='won'?'The King Slime is defeated':'The slimes claim the arena'}</h2><p class="muted">${g.phase==='won'?'The coliseum is yours. A clean ten-wave clear.':survivalCopy}</p><div class="results-score"><div class="result-box"><strong>${kills}</strong><span>Slimes defeated</span></div><div class="result-box"><strong>${Math.round(g.teamDamage||0)}</strong><span>Damage dealt</span></div><div class="result-box"><strong>${score}</strong><span>${solo?'Score':'Party score'}</span></div></div><button class="btn" data-action="again">Back to the menu</button></div>`;
+      const individualScore=Math.round(players.find(p=>p.id===playerId)?.score||0);
+      const survivalCopy=solo?'You survived '+(g.completedWaves||0)+' waves.':'Your party survived '+(g.completedWaves||0)+' waves.';
+      const runLabel=solo?(g.phase==='won'?'Solo · Victory':'Solo · Run Lost'):`Party run · ${g.phase==='won'?'victory':'Run Lost'}`;
+      const resultStats=solo
+        ? `<div class="results-score"><div class="result-box"><strong>${kills}</strong><span>Slimes defeated</span></div><div class="result-box"><strong>${Math.round(g.teamDamage||0)}</strong><span>Damage dealt</span></div><div class="result-box"><strong>${score}</strong><span>Score</span></div></div>`
+        : `<div class="results-score party-results"><div class="result-box"><strong>${kills}</strong><span>Slimes defeated</span></div><div class="result-box"><strong>${Math.round(g.teamDamage||0)}</strong><span>Damage dealt</span></div><div class="result-box"><strong>${individualScore}</strong><span>Individual Score</span></div><div class="result-box"><strong>${score}</strong><span>Party Score</span></div></div>`;
+      node.innerHTML=`<div class="overlay-card"><div class="eyebrow">${runLabel}</div><h2>${g.phase==='won'?'The King Slime is defeated':'The slimes claim the arena'}</h2><p class="muted">${g.phase==='won'?'The coliseum is yours. A clean ten-wave clear.':survivalCopy}</p>${resultStats}<button class="btn" data-action="again">Back to the menu</button></div>`;
       node.querySelector('[data-action="again"]').addEventListener('click',leaveRoom);
     } else node.hidden=true;
   }
@@ -1001,14 +1222,14 @@
     try {
       let response;
       if(legacyInputFallback) {
-        response=await fetch(`/api/rooms/${roomCode}/action`,{...options,body:JSON.stringify({playerId,action:'move',x,y})});
+        response=await fetch(`/api/rooms/${encodeURIComponent(roomKey)}/action`,{...options,body:JSON.stringify({playerId,action:'move',x,y})});
       } else {
-        response=await fetch(`/api/rooms/${roomCode}/input`,options);
+        response=await fetch(`/api/rooms/${encodeURIComponent(roomKey)}/input`,options);
         if(response.status===404) {
           // Keep movement working if an already-running server predates the lightweight input route.
           if(!legacyInputFallback) showToast('Older server detected; using compatibility movement. Restart the server for the optimized route.');
           legacyInputFallback=true;
-          response=await fetch(`/api/rooms/${roomCode}/action`,{...options,body:JSON.stringify({playerId,action:'move',x,y})});
+          response=await fetch(`/api/rooms/${encodeURIComponent(roomKey)}/action`,{...options,body:JSON.stringify({playerId,action:'move',x,y})});
         }
       }
       if(!response.ok&&!inputErrorShown) {
@@ -1071,13 +1292,14 @@
       });
     };
     bindVolume('master-volume-slider','master-volume-label','slime-slayer-master-volume',value=>{masterVolume=value;},true);
-    bindVolume('music-volume-slider','music-volume-label','slime-slayer-music-volume',value=>{musicVolume=value;});
+    bindVolume('music-volume-slider','music-volume-label','slime-slayer-music-volume',value=>{musicVolume=value;},true);
     bindVolume('sfx-volume-slider','sfx-volume-label','slime-slayer-sfx-volume',value=>{volume=value;},true);
     modal.querySelector('#brightness-slider').addEventListener('input',event=>{
       brightness=Number(event.target.value);
       localStorage.setItem('slime-slayer-brightness',String(brightness));
       modal.querySelector('#brightness-label').textContent=`${brightness}%`;
       applyBrightness();
+      sound(660,.08,'triangle');
     });
   }
 
@@ -1094,8 +1316,12 @@
     modal.querySelector('[data-action="cancel-quit"]').focus();
   }
 
-  // Always begin with the title screen. A saved room code remains available in
-  // Party → Join so a returning player can reconnect after starting at the title.
+  // Invite links use an unguessable room token and bypass the manual code prompt.
   applyBrightness();
-  renderTitleScreen();
+  const inviteToken = new URLSearchParams(window.location.search).get('invite');
+  if (inviteToken) {
+    window.history.replaceState(null, document.title, `${window.location.pathname}${window.location.hash}`);
+    app.innerHTML = '<section class="screen title-screen"><div class="title-screen-content"><h1>Joining party…</h1></div></section>';
+    void joinRoom(inviteToken, { inviteToken: true });
+  } else renderTitleScreen();
 })();
