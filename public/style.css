@@ -159,6 +159,14 @@ kbd { display:inline-grid; place-items:center; min-width:22px; min-height:20px; 
 .overlay[hidden] { display:none; }
 .overlay-card { width:min(620px,100%); padding:25px; border:1px solid rgba(236,195,124,.35); border-radius:12px; background:rgba(27,25,26,.97); box-shadow:0 18px 75px rgba(0,0,0,.56); text-align:center; }
 .overlay-card h2 { margin:0 0 7px; font:700 clamp(1.45rem,4vw,2rem) Cinzel,Georgia,serif; color:#f1dfc2; }
+.settings-card { max-width:500px; max-height:min(90vh,820px); overflow-y:auto; }
+.settings-group { margin-top:18px; padding-top:15px; border-top:1px solid rgba(226,188,120,.15); }
+.settings-group-title { margin-bottom:10px; color:#e8c992; font:600 .75rem Cinzel,Georgia,serif; text-transform:uppercase; letter-spacing:.1em; }
+.setting-label { display:flex; justify-content:space-between; align-items:center; gap:12px; margin:12px 0 3px; color:#e8dfd0; font-size:.78rem; }
+.setting-label output { color:#f0c977; font-variant-numeric:tabular-nums; }
+.setting-range { display:block; width:100%; margin:5px 0 13px; accent-color:var(--gold); }
+.settings-note { margin:0 0 12px; font-size:.68rem; line-height:1.45; }
+.brightness-group { margin-top:14px; }
 .settings-actions,.quit-actions { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:18px; }
 .quit-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
 .quit-actions .btn { width:100%; padding-left:10px; padding-right:10px; }

@@ -35,7 +35,10 @@
   let drawHandle = null;
   let polling = false;
   let toastHandle = null;
-  let volume = Number(localStorage.getItem('slime-slayer-volume') ?? 0.25);
+  let volume = readUnitSetting('slime-slayer-sfx-volume', readUnitSetting('slime-slayer-volume', 0.25));
+  let masterVolume = readUnitSetting('slime-slayer-master-volume', 1);
+  let musicVolume = readUnitSetting('slime-slayer-music-volume', 0.35);
+  let brightness = readBrightnessSetting();
   let keys = new Set();
   let moveVector = { x: 0, y: 0 };
   let smoothedMoveVector = { x: 0, y: 0 };
@@ -55,6 +58,32 @@
 
   function esc(value) {
     return String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  }
+  function readUnitSetting(key, fallback) {
+    const stored = localStorage.getItem(key);
+    if (stored === null) return fallback;
+    const value = Number(stored);
+    return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : fallback;
+  }
+  function readBrightnessSetting() {
+    const key = 'slime-slayer-brightness';
+    const scaleKey = 'slime-slayer-brightness-scale';
+    const stored = localStorage.getItem(key);
+    if (stored === null) {
+      localStorage.setItem(scaleKey, '0-100-centered');
+      return 50;
+    }
+    const value = Number(stored);
+    if (!Number.isFinite(value)) return 50;
+    const normalized = localStorage.getItem(scaleKey) === '0-100-centered'
+      ? Math.max(0, Math.min(100, value))
+      : Math.max(0, Math.min(100, Math.round(value / 2)));
+    localStorage.setItem(key, String(normalized));
+    localStorage.setItem(scaleKey, '0-100-centered');
+    return normalized;
+  }
+  function applyBrightness() {
+    app.style.filter = brightness === 50 ? '' : `brightness(${brightness / 50})`;
   }
   function hero(id) { return HEROES.find(h => h.id === id) || HEROES[0]; }
   function getSelf() { return currentRoom?.players?.find(p => p.id === playerId); }
@@ -86,14 +115,14 @@
   }
   function gearButton() { return '<button class="gear-btn" type="button" title="Settings and controls" aria-label="Settings and controls" data-action="settings">⚙</button>'; }
   function sound(frequency = 440, duration = 0.08, type = 'sine') {
-    if (volume <= 0) return;
+    if (volume <= 0 || masterVolume <= 0) return;
     try {
       soundContext ||= new (window.AudioContext || window.webkitAudioContext)();
       const osc = soundContext.createOscillator();
       const gain = soundContext.createGain();
       osc.type = type;
       osc.frequency.value = frequency;
-      gain.gain.setValueAtTime(Math.max(0.001, volume * 0.07), soundContext.currentTime);
+      gain.gain.setValueAtTime(Math.max(0.001, volume * masterVolume * 0.07), soundContext.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, soundContext.currentTime + duration);
       osc.connect(gain); gain.connect(soundContext.destination);
       osc.start(); osc.stop(soundContext.currentTime + duration);
@@ -515,6 +544,7 @@
 
   function enterGame() {
     if (!currentRoom) return;
+    const solo = currentRoom.mode === 'solo';
     setScreen('game');
     smoothedMoveVector = { x: 0, y: 0 };
     lastMovementUpdateAt = performance.now();
@@ -526,9 +556,9 @@
       <section class="game-screen">
         <header class="game-topbar">
           <div class="game-brand">SLIME SLAYER</div>
-          <div class="wave-block"><div class="wave-label">Coliseum run</div><div class="wave-value" id="wave-label">Wave 1 / 10</div></div>
+          <div class="wave-block"><div class="wave-value" id="wave-label">Wave 1 / 10</div></div>
           <div class="progress-wrap"><div class="progress-label"><span id="progress-copy">The slimes are gathering</span><span id="enemy-count">0 enemies</span></div><div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div></div>
-          <div class="top-stats"><span id="fps-counter" title="Rendered frames per second">-- FPS</span><span>☠ <strong id="kill-count">0</strong></span><span class="score-stat">✦ <strong id="team-score">0</strong></span></div>
+          <div class="top-stats"><span id="fps-counter" title="Rendered frames per second">-- FPS</span><span>☠ <strong id="kill-count">0</strong></span><span class="score-stat" title="${solo ? 'Score' : 'Party score'}">✦ <strong id="team-score">0</strong></span></div>
           <button class="icon-btn gear-icon" title="Settings and controls" aria-label="Settings and controls" data-action="help">⚙</button>
         </header>
         <div class="game-body">
@@ -538,12 +568,12 @@
             <div class="overlay" id="game-overlay" hidden></div>
           </div>
           <aside class="side-panel">
-            <section class="side-card"><div class="side-title">The party</div><div id="party-status"></div></section>
+            <section class="side-card"><div class="side-title">${solo ? 'Your champion' : 'The party'}</div><div id="party-status"></div></section>
             <section class="side-card"><div class="side-title">Arena radar</div><div class="minimap" id="minimap"></div></section>
             <section class="side-card controls-card"><div class="side-title">Controls</div><div class="controls-line"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move</div><div class="controls-line"><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> Move</div><div class="controls-line"><kbd>E</kbd> Champion ability</div><div class="controls-line muted">Attacks happen automatically.</div></section>
           </aside>
         </div>
-        <footer class="game-bottombar"><span id="hero-hud">${hero(getSelf()?.hero).id}</span><span class="muted">No friendly fire · revive between waves</span><button class="ability-chip" id="ability-chip">E · ${esc(getSelf()?.abilityName || 'Ability')}</button></footer>
+        <footer class="game-bottombar"><span id="hero-hud">${hero(getSelf()?.hero).id}</span><span class="muted">${solo ? 'Solo · SURVIVE' : 'No friendly fire · revive between waves'}</span><button class="ability-chip" id="ability-chip">E · ${esc(getSelf()?.abilityName || 'Ability')}</button></footer>
       </section>`;
     document.querySelector('[data-action="help"]').addEventListener('click', showSettings);
     document.querySelector('#ability-chip').addEventListener('click', () => act('ability'));
@@ -864,10 +894,10 @@
     const total=g.waveDuration||20; const progress=g.phase==='wave'?Math.min(100,g.waveElapsed/total*100):g.phase==='upgrade'?100:100;
     const fill=document.querySelector('#progress-fill'); if(fill) fill.style.width=`${progress}%`;
     const copy=document.querySelector('#progress-copy');
-    if(copy) copy.textContent=g.phase==='upgrade'?'Choose an upgrade':g.phase==='won'?'The arena is clear':g.phase==='lost'?'The party has fallen':`Survive the wave · ${Math.max(0,Math.ceil(total-g.waveElapsed))}s`;
+    if(copy) copy.textContent=g.phase==='upgrade'?'Choose an upgrade':g.phase==='won'?'The arena is clear':g.phase==='lost'?(currentRoom.mode==='solo'?'You have fallen':'The party has fallen'):`Survive the wave · ${Math.max(0,Math.ceil(total-g.waveElapsed))}s`;
     const count=document.querySelector('#enemy-count'); if(count) count.textContent=`${g.enemies.length} ${g.enemies.length===1?'enemy':'enemies'}`;
     const kills=document.querySelector('#kill-count'); if(kills) kills.textContent=g.teamKills;
-    const score=document.querySelector('#team-score'); if(score) score.textContent=(currentRoom.players||[]).reduce((sum,p)=>sum+p.score,0);
+    const score=document.querySelector('#team-score'); if(score) score.textContent=Math.round((currentRoom.players||[]).reduce((sum,p)=>sum+p.score,0));
     const status=document.querySelector('#party-status');
     const statusMarkup=visualPlayers.map(p=>`<div class="party-row"><div class="party-dot" style="color:${hero(p.hero).color}">${p.hero[0]}</div><span>${esc(p.name)}${p.id===playerId?' · you':''}</span><strong>${Math.max(0,Math.ceil(p.hp))}</strong><div class="hp-track"><div class="hp-fill" style="width:${p.maxHp?Math.max(0,Math.round(p.hp/p.maxHp*100)):0}%;background:${p.alive?'#79bb70':'#e76850'}"></div></div></div>`).join('');
     if(status && statusMarkup!==lastPartyStatusMarkup) { status.innerHTML=statusMarkup; lastPartyStatusMarkup=statusMarkup; }
@@ -905,16 +935,22 @@
     if(g.phase==='upgrade') {
       node.hidden=false;
       if(self?.upgradePicked) {
-        node.innerHTML=`<div class="overlay-card"><div class="eyebrow">Wave ${g.wave} cleared</div><h2>Upgrade chosen</h2><p class="muted">Waiting for the other champions. The next wave begins when everyone is ready.</p><div class="small muted">Downed allies return at the center with some health.</div></div>`;
+        const waitCopy=currentRoom.mode==='solo'?'Your upgrade is ready. The next wave begins shortly.':'Waiting for the other champions. The next wave begins when everyone is ready.';
+        const reviveCopy=currentRoom.mode==='solo'?'A solo run ends when your champion falls.':'Downed allies return at the center with some health.';
+        node.innerHTML=`<div class="overlay-card"><div class="eyebrow">Wave ${g.wave} cleared</div><h2>Upgrade chosen</h2><p class="muted">${waitCopy}</p><div class="small muted">${reviveCopy}</div></div>`;
       } else {
-        node.innerHTML=`<div class="overlay-card"><div class="eyebrow">Wave ${g.wave} cleared</div><h2>Choose an upgrade</h2><p class="muted small">Each champion chooses a lasting bonus before the next wave.</p><div class="upgrade-grid">${UPGRADES.map(u=>`<button class="upgrade-card" data-upgrade="${u.id}"><div class="upgrade-icon">${u.icon}</div><strong>${u.name}</strong><span>${u.text}</span></button>`).join('')}</div></div>`;
+        const upgradeCopy=currentRoom.mode==='solo'?'Choose one lasting bonus for your run.':'Each champion chooses a lasting bonus before the next wave.';
+        node.innerHTML=`<div class="overlay-card"><div class="eyebrow">Wave ${g.wave} cleared</div><h2>Choose an upgrade</h2><p class="muted small">${upgradeCopy}</p><div class="upgrade-grid">${UPGRADES.map(u=>`<button class="upgrade-card" data-upgrade="${u.id}"><div class="upgrade-icon">${u.icon}</div><strong>${u.name}</strong><span>${u.text}</span></button>`).join('')}</div></div>`;
         node.querySelectorAll('[data-upgrade]').forEach(button=>button.addEventListener('click',async()=>{await act('upgrade',button.dataset.upgrade);sound(520,.1,'triangle');}));
       }
     } else if(g.phase==='won'||g.phase==='lost') {
       node.hidden=false;
-      const score=(currentRoom.players||[]).reduce((sum,p)=>sum+p.score,0);
+      const solo=currentRoom.mode==='solo';
+      const score=Math.round((currentRoom.players||[]).reduce((sum,p)=>sum+p.score,0));
       const kills=g.teamKills||0;
-      node.innerHTML=`<div class="overlay-card"><div class="eyebrow">${currentRoom.mode==='solo'?'Solo run':'Party run'} · ${g.phase==='won'?'victory':'run ended'}</div><h2>${g.phase==='won'?'The King Slime is defeated':'The slimes claim the arena'}</h2><p class="muted">${g.phase==='won'?'The coliseum is yours. A clean ten-wave clear.':'Your party survived '+(g.completedWaves||0)+' complete waves.'}</p><div class="results-score"><div class="result-box"><strong>${kills}</strong><span>Slimes defeated</span></div><div class="result-box"><strong>${Math.round(g.teamDamage||0)}</strong><span>Damage dealt</span></div><div class="result-box"><strong>${score}</strong><span>Party score</span></div></div><button class="btn" data-action="again">Back to the menu</button></div>`;
+      const survivalCopy=solo?'You survived '+(g.completedWaves||0)+' complete waves.':'Your party survived '+(g.completedWaves||0)+' complete waves.';
+      const runLabel=solo?(g.phase==='won'?'Solo · Victory':'Solo · Run Ended'):`Party run · ${g.phase==='won'?'victory':'run ended'}`;
+      node.innerHTML=`<div class="overlay-card"><div class="eyebrow">${runLabel}</div><h2>${g.phase==='won'?'The King Slime is defeated':'The slimes claim the arena'}</h2><p class="muted">${g.phase==='won'?'The coliseum is yours. A clean ten-wave clear.':survivalCopy}</p><div class="results-score"><div class="result-box"><strong>${kills}</strong><span>Slimes defeated</span></div><div class="result-box"><strong>${Math.round(g.teamDamage||0)}</strong><span>Damage dealt</span></div><div class="result-box"><strong>${score}</strong><span>${solo?'Score':'Party score'}</span></div></div><button class="btn" data-action="again">Back to the menu</button></div>`;
       node.querySelector('[data-action="again"]').addEventListener('click',leaveRoom);
     } else node.hidden=true;
   }
@@ -998,12 +1034,51 @@
     if(existing){existing.remove();return;}
     const modal=document.createElement('div');modal.id='modal-root';modal.className='overlay';modal.style.position='fixed';modal.style.zIndex='30';
     const quitButton = currentScreen === 'game' ? '<button class="btn danger" data-action="quit">Quit game</button>' : '';
-    modal.innerHTML=`<div class="overlay-card settings-card" style="text-align:left"><div class="eyebrow">Slime Slayer</div><h2>Settings &amp; quick rules</h2><p class="small muted">Move with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrow keys. Your hero attacks automatically when a slime is in range. Press <kbd>E</kbd> to use your champion ability.</p><p class="small muted">Survive the ten waves. Pick one upgrade after every cleared wave. In co-op, fallen champions return between waves. Red slimes burst when defeated. Watch for ranged shots from green, yellow, and black slimes.</p><label class="small" for="volume-slider">Sound effects <span id="volume-label">${Math.round(volume*100)}%</span></label><input id="volume-slider" type="range" min="0" max="100" value="${Math.round(volume*100)}" style="display:block;width:100%;margin:12px 0 19px"><div class="settings-actions">${quitButton}<button class="btn" data-action="close">Close</button></div></div>`;
+    const isSolo=currentRoom?.mode==='solo';
+    modal.innerHTML=`<div class="overlay-card settings-card" style="text-align:left">
+      <div class="eyebrow">Slime Slayer</div><h2>Settings &amp; quick rules</h2>
+      <p class="small muted">Move with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrow keys. Your hero attacks automatically when a slime is in range. Press <kbd>E</kbd> to use your champion ability.</p>
+      <p class="small muted">Survive the ten waves and pick one upgrade after each cleared wave. ${isSolo?'A solo run ends when your champion falls.':'In co-op, fallen champions return between waves.'} Red slimes burst when defeated. Watch for ranged shots from green, yellow, and black slimes.</p>
+      <div class="settings-group">
+        <div class="settings-group-title">Audio</div>
+        <label class="setting-label" for="master-volume-slider"><span>Master volume</span><output id="master-volume-label">${Math.round(masterVolume*100)}%</output></label>
+        <input class="setting-range" id="master-volume-slider" type="range" min="0" max="100" value="${Math.round(masterVolume*100)}">
+        <label class="setting-label" for="music-volume-slider"><span>Music</span><output id="music-volume-label">${Math.round(musicVolume*100)}%</output></label>
+        <input class="setting-range" id="music-volume-slider" type="range" min="0" max="100" value="${Math.round(musicVolume*100)}">
+        <p class="settings-note muted">A music track has not been added yet; this level will apply when one is available.</p>
+        <label class="setting-label" for="sfx-volume-slider"><span>Sound effects</span><output id="sfx-volume-label">${Math.round(volume*100)}%</output></label>
+        <input class="setting-range" id="sfx-volume-slider" type="range" min="0" max="100" value="${Math.round(volume*100)}">
+      </div>
+      <div class="settings-group brightness-group">
+        <div class="settings-group-title">Display</div>
+        <label class="setting-label" for="brightness-slider"><span>Brightness</span><output id="brightness-label">${brightness}%</output></label>
+        <input class="setting-range" id="brightness-slider" type="range" min="0" max="100" step="1" value="${brightness}">
+      </div>
+      <div class="settings-actions">${quitButton}<button class="btn" data-action="close">Close</button></div>
+    </div>`;
     document.body.append(modal);
     modal.querySelector('[data-action="close"]').addEventListener('click',()=>modal.remove());
     modal.querySelector('[data-action="quit"]')?.addEventListener('click',()=>{modal.remove();showQuitConfirmation();});
     modal.addEventListener('click',event=>{if(event.target===modal)modal.remove();});
-    modal.querySelector('#volume-slider').addEventListener('input',event=>{volume=Number(event.target.value)/100;localStorage.setItem('slime-slayer-volume',String(volume));modal.querySelector('#volume-label').textContent=`${Math.round(volume*100)}%`;sound(500,.08);});
+    const bindVolume=(inputId,labelId,storageKey,setValue,preview=false)=>{
+      modal.querySelector(`#${inputId}`).addEventListener('input',event=>{
+        const percent=Number(event.target.value);
+        const level=percent/100;
+        setValue(level);
+        localStorage.setItem(storageKey,String(level));
+        modal.querySelector(`#${labelId}`).textContent=`${percent}%`;
+        if(preview)sound(500,.08);
+      });
+    };
+    bindVolume('master-volume-slider','master-volume-label','slime-slayer-master-volume',value=>{masterVolume=value;},true);
+    bindVolume('music-volume-slider','music-volume-label','slime-slayer-music-volume',value=>{musicVolume=value;});
+    bindVolume('sfx-volume-slider','sfx-volume-label','slime-slayer-sfx-volume',value=>{volume=value;},true);
+    modal.querySelector('#brightness-slider').addEventListener('input',event=>{
+      brightness=Number(event.target.value);
+      localStorage.setItem('slime-slayer-brightness',String(brightness));
+      modal.querySelector('#brightness-label').textContent=`${brightness}%`;
+      applyBrightness();
+    });
   }
 
   function showQuitConfirmation() {
@@ -1021,5 +1096,6 @@
 
   // Always begin with the title screen. A saved room code remains available in
   // Party → Join so a returning player can reconnect after starting at the title.
+  applyBrightness();
   renderTitleScreen();
 })();
