@@ -1,0 +1,36 @@
+  const combatAudio={run:null,seen:new Set(),cache:new Map(),active:new Set()};
+  function combatBuffer(kind){
+    if(combatAudio.cache.has(kind))return combatAudio.cache.get(kind);
+    const rate=24000,durations={arrow:.24,mace:.38,sword:.27,brush:.48,riposte:1.05,mark:1.5,fire:1.25,bell:2.2},duration=durations[kind];
+    const buffer=gameAudio.context.createBuffer(1,Math.ceil(rate*duration),rate),out=buffer.getChannelData(0);let seed=1783,low=0,phase=0;
+    for(let i=0;i<out.length;i++){
+      const t=i/rate,p=t/duration;seed^=seed<<13;seed^=seed>>>17;seed^=seed<<5;const n=(seed>>>0)/2147483648-1;low+=.08*(n-low);const high=n-low;let v=0;
+      if(kind==='arrow'){const env=Math.exp(-t*25)*(1-Math.exp(-t*300));v=high*.36*env+Math.sin(2*Math.PI*(430*t-420*t*t))*.22*Math.exp(-t*35);}
+      if(kind==='mace'){const env=Math.sin(Math.PI*p)**1.2;v=low*1.6*env+high*.14*env+Math.sin(2*Math.PI*(90*t-60*t*t))*.11*Math.exp(-t*9);}
+      if(kind==='sword'){const env=Math.sin(Math.PI*p)**1.4;v=high*.27*env+low*.35*env+Math.sin(2*Math.PI*(1350*t+300*t*t))*.06*Math.exp(-t*14);}
+      if(kind==='brush'){const rustle=(.6+.4*Math.sin(2*Math.PI*23*t))*Math.sin(Math.PI*p);v=(high*.25+low*.8)*rustle;v+=Math.sin(2*Math.PI*145*t)*.06*Math.exp(-t*15);}
+      if(kind==='riposte'){v=(Math.sin(2*Math.PI*1480*t)+.45*Math.sin(2*Math.PI*2220*t)+.24*Math.sin(2*Math.PI*3715*t))*.14*Math.exp(-t*5)*(1-Math.exp(-t*200))+high*.15*Math.exp(-t*30);}
+      if(kind==='mark'){const rise=Math.sin(Math.PI*p)**2;v=low*.9*rise+Math.sin(2*Math.PI*(55*t-8*t*t))*.15*rise+Math.sin(2*Math.PI*(940*t-200*t*t))*.035*rise;for(const at of [.62,.82]){const age=t-at;if(age>=0)v+=Math.sin(2*Math.PI*48*age)*.32*Math.exp(-age*19)*(1-Math.exp(-age*160));}}
+      if(kind==='fire'){const env=Math.min(1,t/.08)*Math.min(1,(duration-t)/.3);v=(low*1.15+high*.18)*env*(.75+.25*Math.sin(2*Math.PI*17*t));if(n>.96)v+=high*.1*env;}
+      if(kind==='bell'){const env=(1-Math.exp(-t*250))*Math.exp(-t*2);for(const [ratio,amp] of [[1,.2],[2.01,.12],[2.76,.09],[4.07,.06],[5.4,.025]])v+=Math.sin(2*Math.PI*392*ratio*t)*amp*env*Math.exp(-t*(ratio-1)*.35);}
+      const edge=Math.min(1,t/.004)*Math.min(1,(duration-t)/.035);out[i]=Math.tanh(v)*edge;
+    }
+    combatAudio.cache.set(kind,buffer);return buffer;
+  }
+  function playCombatAudio(kind,x){
+    if(!gameAudio.context||gameAudio.context.state!=='running'||document.hidden||volume<=0||masterVolume<=0||combatAudio.active.size>=18)return;
+    const source=gameAudio.context.createBufferSource();source.buffer=combatBuffer(kind);source.playbackRate.value=kind==='bell'||kind==='mark'?1:.96+Math.random()*.08;
+    const gain=gameAudio.context.createGain();gain.gain.value=kind==='mark'||kind==='bell'?.8:.65;
+    const pan=gameAudio.context.createStereoPanner();pan.pan.value=Math.max(-.65,Math.min(.65,((x??600)-(getSelf()?.x??600))/700));
+    source.connect(gain);gain.connect(pan);pan.connect(gameAudio.sfxGain);combatAudio.active.add(source);
+    source.onended=()=>{source.disconnect();gain.disconnect();pan.disconnect();combatAudio.active.delete(source);};source.start();
+  }
+  function syncCombatAudio(){
+    const g=currentRoom?.game;if(!g||g.paused||g.phase!=='wave')return;
+    if(combatAudio.run!==g.runId){combatAudio.run=g.runId;combatAudio.seen.clear();}
+    const types={'bow-shot':'arrow','mace-sweep':'mace','sword-sweep':'sword','thorn-burst':'brush','riposte-wave':'riposte',mark:'mark',breath:'fire','staff-cast':'bell'};
+    for(const e of g.effects||[]){if(!types[e.kind])continue;const key=e.kind==='bow-shot'?'shot:'+e.projectileId:'fx:'+e.id;if(combatAudio.seen.has(key))continue;combatAudio.seen.add(key);if(e.life>.04)playCombatAudio(types[e.kind],e.x);}
+    // Support running servers that predate the persistent bow-shot cue.
+    for(const p of g.projectiles||[]){if(p.type!=='hero'||currentRoom.players.find(player=>player.id===p.from)?.hero!=='Ravela')continue;const key='shot:'+p.id;if(combatAudio.seen.has(key))continue;combatAudio.seen.add(key);playCombatAudio('arrow',p.originX??p.x);}
+    if(combatAudio.seen.size>2048)combatAudio.seen=new Set([...combatAudio.seen].slice(-1024));
+  }

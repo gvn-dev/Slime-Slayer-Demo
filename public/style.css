@@ -204,11 +204,12 @@ kbd { display:inline-grid; place-items:center; min-width:22px; min-height:20px; 
 .mobile-pad::before { content:''; position:absolute; width:39px; height:39px; border-radius:50%; background:rgba(225,202,164,.46); border:1px solid rgba(255,255,255,.24); left:50%; top:50%; transform:translate(calc(-50% + var(--stick-x, 0px)),calc(-50% + var(--stick-y, 0px))); }
 .mobile-pad.active::before { background:rgba(238,194,114,.82); }
 .passive-card,.ability-card { flex:none; }
+.sidebar-metrics { display:grid; }
+.fjord-damage-metric strong { white-space:nowrap; }
 .ability-name { color:#f0d7a6; font:600 .75rem Cinzel,Georgia,serif; }
 .ability-description { margin:6px 0 9px; color:#bcb1a4; font-size:.64rem; line-height:1.4; }
 .ability-cooldown-row { display:flex; align-items:center; justify-content:space-between; gap:8px; padding-top:7px; border-top:1px solid rgba(222,210,192,.09); color:#bdb2a2; font-size:.64rem; }
 .ability-cooldown-row strong { color:#f2d596; font-variant-numeric:tabular-nums; }
-.mark-stats[hidden] { display:none; }
 .sidebar-ability { display:block; width:100%; min-height:40px; margin-top:10px; white-space:normal; line-height:1.25; }
 .sidebar-ability:disabled { opacity:.62; cursor:default; }
 .overlay { position:absolute; z-index:5; inset:0; display:grid; place-items:center; padding:20px; background:rgba(9,9,11,.72); backdrop-filter:blur(3px); }
@@ -612,3 +613,127 @@ kbd { display:inline-grid; place-items:center; min-width:22px; min-height:20px; 
   .game-topbar { gap:6px; }
   .top-stats #fps-counter { display:none; }
 }
+/* Account panels and accessible responsive HUD */
+.account-menu,.result-actions { display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:10px;margin:18px 0; }
+.account-overlay { position:fixed;inset:0;z-index:60;padding:16px;background:#100e18db;overflow:auto; }
+.account-card { position:relative;width:min(760px,100%);max-height:calc(100dvh - 32px);overflow:auto;text-align:left;padding:28px; }
+.modal-close { float:right;min-width:44px;min-height:44px; }
+#auth-form { display:grid;gap:14px;max-width:420px;margin:0 auto; }
+#auth-form label { display:grid;gap:7px; }
+#auth-form input { width:100%;box-sizing:border-box;font-size:16px; }
+.form-error { color:#ff9fa8;min-height:1.2em;margin:0; }
+.auth-toggle { display:block;margin:18px auto; }
+.achievement-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px; }
+.achievement-tile { display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;padding:18px 10px;border:1px solid #77603c;border-radius:10px;background:#211f29;min-width:0; }
+.achievement-frame { width:92px;height:92px;display:grid;place-items:center;background:#282026;border:3px ridge #e5bd64;box-shadow:0 0 0 2px #624a2c; }
+.achievement-frame img { image-rendering:pixelated;object-fit:contain; }
+.achievement-tile.locked .achievement-frame { filter:grayscale(1);opacity:.35; }
+.achievement-tile span,.achievement-tile small { font-size:.75rem;color:#c8bdac; }
+.achievement-tile progress { width:90%;accent-color:#e8c46a; }
+.leaderboard-scroll { overflow:auto;max-height:55dvh; }
+.global-table { width:100%;border-collapse:collapse;font-size:.9rem; }
+.global-table th,.global-table td { text-align:left;padding:12px 8px;border-bottom:1px solid #544538;overflow-wrap:anywhere; }
+.lobby-screen { flex-direction:column; }
+.lobby-chat { width:min(100% - 32px,1000px);margin:16px auto 32px;padding:16px;border:1px solid #62513f;border-radius:12px;box-sizing:border-box;background:#201e27; }
+.lobby-chat h2 { font-size:1rem;margin:0 0 10px; }
+#chat-messages { height:130px;overflow:auto;font-size:.85rem;overflow-wrap:anywhere; }
+#chat-messages p { margin:6px 0; }
+#chat-form { display:flex;gap:8px;margin-top:12px; }
+#chat-input { flex:1;min-width:0;font-size:16px; }
+.hp-track,.hero-hp-track,.progress-track { border:2px ridge #d9b466;box-shadow:0 0 0 1px #544025,inset 0 1px 2px #fff3;position:relative;overflow:visible;box-sizing:content-box; }
+
+.hero-hp-fill,.progress-fill { border-radius:inherit;max-width:100%; }
+button,input { touch-action:manipulation; }
+#mobile-pad,.arena-wrap { touch-action:none; }
+@media(pointer:coarse) { .btn,.icon-btn,.character-arrow { min-height:44px; } #mobile-pad { display:block; } input { font-size:16px!important; } }
+@media(max-width:700px) {
+  .account-card { padding:18px; }
+  .game-topbar { padding-top:max(8px,env(safe-area-inset-top)); }
+  .game-bottombar { padding-bottom:max(8px,env(safe-area-inset-bottom)); }
+  .game-body { grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:minmax(190px,1fr) minmax(150px,29dvh); }
+  .left-panel,.side-panel { display:flex!important;flex-direction:column!important;overflow:auto!important;min-width:0; }
+  .side-panel>.side-card,.side-panel .champion-stats-card,.side-panel .run-totals-card,.side-panel .passive-card { width:auto;min-width:0;flex:none;overflow:visible; }
+  .side-panel .radar-card { order:0; }.side-panel .champion-stats-card { order:1; }.side-panel .run-totals-card { order:2; }.side-panel .passive-card { order:3; }
+  .left-panel .ability-description { display:block;font-size:.65rem;line-height:1.4; }
+  .side-panel .side-title,.left-panel .side-title { font-size:.7rem; }
+  .account-menu { margin:12px 0;gap:6px; }
+  .account-menu .btn { font-size:.75rem;padding:9px; }
+  .upgrade-grid { gap:8px; }.upgrade-card { min-width:0;padding:12px 8px; }.upgrade-card strong { font-size:.9rem; }.upgrade-card span { font-size:.75rem; }
+  .overlay-card { max-height:calc(100dvh - 24px);overflow:auto;box-sizing:border-box; }
+  .lobby-chat { width:calc(100% - 20px);padding:12px; }
+}
+@media(max-width:380px) { .achievement-grid { grid-template-columns:1fr; }.game-brand { font-size:.65rem; }.game-topbar { flex-wrap:wrap; }.results-score { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-height:500px) and (min-width:701px) { .game-body { grid-template-columns:155px minmax(0,1fr) 190px; }.side-panel,.left-panel { overflow:auto; }.game-screen { min-height:0;height:100dvh; } }
+.mobile-cast { display:none;position:absolute;right:20px;bottom:22px;z-index:6;min-width:66px;min-height:60px;border-radius:50%;padding:8px;font-size:.8rem;touch-action:none; }
+@media(pointer:coarse),(max-width:700px) { .mobile-cast { display:block; } }
+@media(max-width:700px) { .hero-stat-line { font-size:.65rem; }.sidebar-metrics,.player-run-line,.run-total,.party-row { font-size:.65rem; }.controls-line { font-size:.6rem; }.side-panel .minimap { width:100%;height:95px; }.game-topbar .progress-label { font-size:.55rem; }.solo-pause-btn { min-width:44px;min-height:44px; } }
+.toast { z-index:100; }
+.hero-stat-line { font-size:.68rem;line-height:1.4;grid-template-columns:1fr;gap:3px; }
+.hero-stat-line>span { white-space:normal;gap:8px; }
+.side-panel,.left-panel { scrollbar-width:thin;scrollbar-color:#a98954 #201e27; }
+@media(max-width:700px) { .side-panel .side-card { font-size:.72rem; }.side-panel .minimap { height:90px; }.sidebar-metric { font-size:.68rem; } }
+@media(max-height:540px) { .hero-stat-line { font-size:.65rem;line-height:1.35; }.player-run-line,.run-total,.controls-line { font-size:.65rem; }.side-title { font-size:.7rem; } }
+.password-field { position:relative;display:block; }
+#auth-form .password-field input { padding-right:52px; }
+.password-eye { position:absolute;right:2px;top:50%;transform:translateY(-50%);width:44px;height:44px;display:grid;place-items:center;background:transparent;border:0;border-radius:6px;color:#e2c785;cursor:pointer; }
+.password-eye[aria-pressed="true"] { color:white;background:#d6b45a20; }
+.tutorial-toggle { justify-content:flex-start;gap:9px;line-height:1.4;margin-bottom:18px; }
+.tutorial-toggle input { flex:0 0 17px; }
+.tutorial-toggle span { flex:0 1 auto; }
+.portrait,.lobby-portrait-wrap { position:relative; }
+.lobby-portrait-wrap { width:100%; }
+.lobby-portrait-wrap>.slot-portrait { display:block;width:100%; }
+.level-shield { position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:42px;height:48px;display:grid;place-items:center;background:linear-gradient(135deg,#fff0ac,#ba7e22 50%,#f6d982);clip-path:polygon(3% 0,97% 0,92% 65%,76% 86%,50% 100%,24% 86%,8% 65%);filter:drop-shadow(0 2px 2px #0008);z-index:2; }
+.level-shield::before { content:'';position:absolute;inset:3px;background:linear-gradient(140deg,#b48b38,#684716);clip-path:inherit; }
+.level-shield>span { position:relative;color:#fff!important;font:bold 20px Georgia,serif;text-shadow:0 1px 2px #30200d;line-height:1;padding-bottom:5px; }
+.account-identity { position:fixed;left:max(12px,env(safe-area-inset-left));bottom:max(8px,env(safe-area-inset-bottom));z-index:14;color:white;font-size:.78rem;line-height:1.3;background:#17141de6;border:1px solid #94764480;border-radius:5px;padding:4px 9px;max-width:calc(100vw - 24px);overflow-wrap:anywhere;pointer-events:none; }
+.account-identity[hidden] { display:none; }
+.has-account .game-bottombar { padding-bottom:36px; }
+.has-account .screen:not(.game-screen) { padding-bottom:54px; }
+.achievement-frame img { width:100%;height:100%;object-fit:cover; }
+.achievement-frame { overflow:hidden; }
+@media(max-width:600px) { .level-shield { width:34px;height:40px;bottom:6px; }.level-shield>span { font-size:17px; }.account-identity { font-size:.7rem; }.has-account .game-bottombar { padding-bottom:34px; } }
+.lobby-portrait-wrap { flex:1 1 auto;min-height:0; }
+.lobby-portrait-wrap>.slot-portrait { height:100%;min-height:0;object-fit:cover; }
+.lobby-portrait-wrap { flex:1 1 160px;min-height:140px; }
+.lobby-portrait-wrap>.slot-portrait { position:absolute;inset:0;min-height:0;height:100%; }
+@media(min-width:1001px) { .party-slot-grid { min-height:380px;grid-template-rows:minmax(380px,1fr); } }
+@media(max-width:1000px) { .party-slot-grid { min-height:780px;grid-template-rows:repeat(2,minmax(380px,1fr)); } }
+/* Shared portrait-edge level badges and engraved card frames. */
+.portrait,.lobby-portrait-wrap { overflow:visible; }
+.portrait>img { border-radius:inherit; }
+.level-shield { width:30px;height:34px;bottom:0;transform:translate(-50%,50%);z-index:5; }
+.level-shield>span { font-size:15px;padding-bottom:3px; }
+.level-shield::before { inset:2px; }
+.hero-card .hero-meta { padding-top:24px; }
+.lobby-portrait-wrap+.character-selector,.lobby-portrait-wrap+.other-player-hero { margin-top:22px; }
+.hero-card,.party-slot { position:relative;border:2px solid #c6a05b;box-shadow:inset 0 0 0 2px #463119,inset 0 0 0 3px #e5c47b60,0 2px 12px #0005;background-image:linear-gradient(135deg,#ffe0a3 0 2px,transparent 2px),linear-gradient(225deg,#ffe0a3 0 2px,transparent 2px),linear-gradient(315deg,#ffe0a3 0 2px,transparent 2px),linear-gradient(45deg,#ffe0a3 0 2px,transparent 2px); }
+.hero-card::after,.party-slot::after { content:'';position:absolute;inset:5px;pointer-events:none;border:1px solid #e6bf7466;border-radius:5px;background:linear-gradient(#efd28c,#efd28c) left top/14px 2px no-repeat,linear-gradient(#efd28c,#efd28c) left top/2px 14px no-repeat,linear-gradient(#efd28c,#efd28c) right top/14px 2px no-repeat,linear-gradient(#efd28c,#efd28c) right top/2px 14px no-repeat,linear-gradient(#efd28c,#efd28c) left bottom/14px 2px no-repeat,linear-gradient(#efd28c,#efd28c) left bottom/2px 14px no-repeat,linear-gradient(#efd28c,#efd28c) right bottom/14px 2px no-repeat,linear-gradient(#efd28c,#efd28c) right bottom/2px 14px no-repeat;z-index:6; }
+.hero-card.selected,.party-slot.player-ready { border-color:#ffdc87;box-shadow:inset 0 0 0 2px #68491e,inset 0 0 0 3px #ffe3a4,0 0 13px #edc56330; }
+.account-identity { pointer-events:auto;cursor:pointer;min-height:32px; }
+.account-identity:hover { border-color:#edc878;background:#302634; }
+@media(max-width:600px) { .level-shield { width:26px;height:30px;bottom:0; }.level-shield>span { font-size:13px; }.hero-card .hero-meta { padding-top:22px; }.account-identity { min-height:36px; }.has-account .game-bottombar { padding-bottom:48px; } }
+.lobby-screen { height:auto;min-height:100svh;overflow:visible;justify-content:flex-start; }
+.lobby-panel { height:auto;flex:none;min-height:0; }
+.party-slot-grid { flex:none; }
+/* Let every lobby row reserve its full height before positioning chat. */
+.lobby-screen { gap:0; }
+.lobby-panel,.lobby-chat,.lobby-actions,.party-lobby-toolbar,.party-progress { flex-shrink:0; }
+.party-slot-grid { grid-template-rows:auto;align-items:stretch;height:auto; }
+.party-slot { height:auto;min-height:380px; }
+.lobby-chat { position:relative;clear:both;flex:none;margin-top:32px;margin-bottom:40px; }
+@media(max-width:1000px) { .party-slot-grid { grid-template-rows:repeat(2,auto); }.party-slot { min-height:380px; }.lobby-chat { margin-top:24px; } }
+/* Keep solo level shields above the adjoining description panel. */
+.solo-hero-grid .hero-card .portrait { overflow:visible;z-index:2; }
+.solo-hero-grid .hero-card .hero-meta { z-index:1; }
+.solo-hero-grid .hero-card .level-shield { z-index:3; }
+.title-art { position:absolute;inset:0;z-index:0;background:#0c0b13 url('/art/Slime%20Slayer%20title%20art.png?v=20261030-37') center/cover no-repeat; }
+.title-art::after { content:'';position:absolute;inset:0;background:linear-gradient(#09091755,transparent 28%,transparent 75%,#080810a6); }
+.title-screen-content { position:absolute;inset:0;width:100%;padding:clamp(22px,5vh,60px) 20px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;pointer-events:none; }
+.title-screen-content h1 { font-size:clamp(2.5rem,7vw,6rem);text-shadow:0 3px 0 #2b1b14,0 5px 20px #000; }
+.title-screen-content .press-start { pointer-events:auto;background:#17121ddd; }
+@media(max-aspect-ratio:1/1) { .title-art { background-size:contain; }.title-screen-content { padding-top:14vh;padding-bottom:14vh; }.title-screen-content h1 { font-size:clamp(2rem,9vw,4.5rem); } }
+/* Cream and gold, raised fantasy lettering matching the supplied title reference. */
+.title-screen h1,.intro-screen .brand h1 { font-family:Georgia,'Times New Roman',serif;font-weight:700;letter-spacing:-.035em;text-transform:none;color:#fff6df;-webkit-text-stroke:1px #714017;paint-order:stroke fill;text-shadow:0 2px 0 #fff4c7,0 3px 0 #e8bd63,0 5px 0 #9e5c21,1px 6px 0 #1b0d09,-2px -1px 0 #1b0d09,2px -1px 0 #1b0d09,-3px 3px 0 #1b0d09,3px 3px 0 #1b0d09,0 9px 8px #000b; }
+.intro-screen .brand h1 { font-size:clamp(2.6rem,8.7vw,6rem);padding-bottom:10px; }
+@media(max-width:600px) { .title-screen h1,.intro-screen .brand h1 { -webkit-text-stroke:.6px #714017;text-shadow:0 1px 0 #fff4c7,0 2px 0 #e8bd63,0 3px 0 #9e5c21,-1px -1px 0 #1b0d09,1px -1px 0 #1b0d09,-2px 2px 0 #1b0d09,2px 2px 0 #1b0d09,0 5px 6px #000b; } }

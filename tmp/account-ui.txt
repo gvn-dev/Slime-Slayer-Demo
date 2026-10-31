@@ -1,0 +1,40 @@
+  function upgradeAppearance(id){
+    if(/regen/.test(id))return {icon:'♻',color:'#80db99'};
+    if(/hp|health|vigor/.test(id))return {icon:'♥',color:'#f78191'};
+    if(/defense|invulnerability/.test(id))return {icon:'⬟',color:'#a6cce9'};
+    if(/attack-speed/.test(id))return {icon:'ϟ',color:'#ffe078'};
+    if(/move-speed|swift/.test(id))return {icon:'➤',color:'#7ddcdd'};
+    if(/cooldown|focus/.test(id))return {icon:'⌛',color:'#9eb9ff'};
+    if(/crit/.test(id))return {icon:'✦',color:'#f4b8ff'};
+    if(/range|radius|width/.test(id))return {icon:'◎',color:'#97d2fa'};
+    if(/damage|power|shot|slash|mace/.test(id))return {icon:'⚔',color:'#ffac70'};
+    return {icon:UPGRADE_CARDS[id]?.icon||'✦',color:'#bba4ef'};
+  }
+  async function refreshAccount(){try{account=(await api('/api/account',null,'GET')).account;if(account)persistName(account.username);}catch(e){toastError(e);}}
+  function accountModal(title,content){
+    document.querySelector('#account-modal')?.remove();const modal=document.createElement('div');modal.id='account-modal';modal.className='overlay account-overlay';
+    modal.innerHTML=`<section class="overlay-card account-card" role="dialog" aria-modal="true" aria-label="${esc(title)}"><button class="btn quiet modal-close" aria-label="Close">×</button><h2>${esc(title)}</h2>${content}</section>`;
+    document.body.append(modal);modal.querySelector('.modal-close').onclick=()=>modal.remove();modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});modal.addEventListener('keydown',e=>{if(e.key==='Escape')modal.remove();if(e.key==='Tab'){const nodes=[...modal.querySelectorAll('button,input,a')].filter(n=>!n.disabled);if(e.shiftKey&&document.activeElement===nodes[0]){e.preventDefault();nodes.at(-1).focus();}else if(!e.shiftKey&&document.activeElement===nodes.at(-1)){e.preventDefault();nodes[0].focus();}}});modal.querySelector('input,button')?.focus();return modal;
+  }
+  function showAccount(register=false){
+    if(account){void showAchievements();return;}
+    const modal=accountModal(register?'Create account':'Welcome back',`<p class="muted small">Save scores, unlock champion achievements, and earn character levels.</p><form id="auth-form"><label>Username<input class="text-input" name="username" minlength="3" maxlength="18" pattern="[A-Za-z0-9_]{3,18}" autocomplete="username" required></label><label>Password<input class="text-input" name="password" type="password" minlength="8" maxlength="128" autocomplete="${register?'new-password':'current-password'}" required></label>${register?'<label>Confirm password<input class="text-input" name="confirm" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></label>':''}<p class="form-error" role="alert"></p><button class="btn" type="submit">${register?'Create account':'Sign in'}</button></form><button class="btn quiet auth-toggle">${register?'Already have an account? Sign in':'New here? Create account'}</button><p class="small muted">Usernames are unique, ignoring capitalization. Use 3–18 letters, numbers, or underscores. Passwords require at least 8 characters.</p>`);
+    modal.querySelector('.auth-toggle').onclick=()=>showAccount(!register);
+    modal.querySelector('form').onsubmit=async e=>{e.preventDefault();const form=e.target;const button=form.querySelector('button');button.disabled=true;const b=Object.fromEntries(new FormData(form));try{account=(await api(`/api/account/${register?'register':'login'}`,b)).account;persistName(account.username);modal.remove();renderMenu();}catch(error){modal.querySelector('.form-error').textContent=error.message;}finally{button.disabled=false;}};
+  }
+  async function showLeaderboard(page=0){
+    const modal=accountModal('Global high scores','<p role="status">Loading scores…</p>');
+    try{const data=await api(`/api/leaderboard?page=${page}`,null,'GET');modal.querySelector('[role="status"]').outerHTML=`<p class="muted small">Best individual run per account · ${data.total} accounts</p><div class="leaderboard-scroll"><table class="global-table"><thead><tr><th>Rank</th><th>Player</th><th>Best score</th></tr></thead><tbody>${data.rows.map((r,i)=>`<tr><td>${page*50+i+1}</td><td>${esc(r.username)}</td><td>${r.score.toLocaleString()}</td></tr>`).join('')||'<tr><td colspan="3">No accounts yet. Be the first!</td></tr>'}</tbody></table></div><div class="result-actions"><button class="btn quiet" data-page="${page-1}" ${page===0?'disabled':''}>Previous</button><span>Page ${page+1}</span><button class="btn quiet" data-page="${page+1}" ${(page+1)*50>=data.total?'disabled':''}>Next</button></div>`;modal.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>showLeaderboard(Number(b.dataset.page)));}catch(e){modal.querySelector('[role="status"]').textContent=e.message;}
+  }
+  async function showAchievements(){
+    await refreshAccount();if(!account){showAccount();return;}
+    accountModal(`${account.username} · Champion legacy`,`<p>High score: <strong>${account.highscore.toLocaleString()}</strong></p><p class="muted small">Complete ten waves with a champion to earn their golden portrait. Run scores become character XP. Levels reach a maximum of 100 and do not change combat stats.</p><div class="achievement-grid">${account.characters.map(p=>`<article class="achievement-tile ${p.achievement?'unlocked':'locked'}"><div class="achievement-frame"><img src="/art/${encodeURIComponent(p.hero+' golden achievement.png')}" alt="Golden ${p.hero} achievement" width="80" height="80"></div><strong>${p.hero}</strong><span>${p.achievement?'Ten-wave champion':'Complete 10 waves to unlock'}</span><b>Level ${p.level} / 100</b><progress value="${p.level===100?1:p.xp-p.levelStart}" max="${p.level===100?1:p.nextLevel-p.levelStart}" aria-label="${p.hero} level progress"></progress><small>${p.level===100?'Maximum level':`${(p.xp-p.levelStart).toLocaleString()} / ${(p.nextLevel-p.levelStart).toLocaleString()} XP`}</small></article>`).join('')}</div>`);
+  }
+  async function showTutorial(){
+    if(account?.tutorialSeen||(!account&&sessionStorage.getItem('slime-hide-tutorial')))return;
+    if(currentScreen!=='game')return;
+    const solo=currentRoom?.mode==='solo';if(solo&&!currentRoom.game.paused)await act('pause',true).catch(()=>{});
+    const modal=accountModal('Your first steps in the arena',`<p>Move with WASD or arrow keys. On a phone, drag the thumbstick. Your champion attacks nearby slimes automatically.</p><p>Press E or tap the ability button to cast your special ability. Avoid red warnings, collect potions, and choose an upgrade after each wave.</p><p>Clear ten waves to win, then continue into endless mode. Escape pauses solo play or opens the leave prompt in multiplayer.</p>${account?'':'<label class="setting-toggle"><input type="checkbox" id="hide-tutorial"> Don’t show again during this browser session</label>'}<button class="btn" id="tutorial-done">Ready to fight</button>`);
+    const dismiss=async()=>{if(account){try{await api('/api/account/tutorial',{});account.tutorialSeen=true;}catch(e){toastError(e);}}else if(modal.querySelector('#hide-tutorial')?.checked)sessionStorage.setItem('slime-hide-tutorial','1');modal.remove();if(solo&&currentRoom?.status==='playing')await act('pause',false).catch(()=>{});};
+    modal.querySelector('#tutorial-done').onclick=dismiss;modal.querySelector('.modal-close').onclick=dismiss;modal.addEventListener('click',e=>{if(e.target===modal)void dismiss();});
+  }

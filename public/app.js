@@ -2,10 +2,10 @@
   'use strict';
 
   const HEROES = [
-    { id: 'Ravela', role: 'Glass cannon · single-target archer', flavor: 'Mark a target so every hero can hit harder.', color: '#d8c7ef', starColor: '#17141b', art: 'Ravela character art.png', ability: 'Mark of Death', abilityDescription: 'Instantly mark the nearest slime within bow range. All damage to it increases by 50%.', passive: { name: 'Double Shot', description: 'Chance to fire one volley at the two nearest enemies.', statLabel: 'Double Shot Chance', statKey: 'doubleShotChance', format: 'percent' }, stats: { hp: 25, attack: 30, speed: 175, range: 340, interval: 0.62, regen: 0, defense: 0, abilityCooldown: 12, critChance: 5, critMultiplier: 2 } },
-    { id: 'Fjord', role: 'Armored tank · close-range cleave', flavor: 'Slow, sturdy, and happiest surrounded by enemies.', color: '#ec9b4b', starColor: '#e7a64e', art: 'Fjord character art.png', ability: 'Fire Breath', abilityDescription: 'Breathe fire in front of Fjord, damaging slimes in a wide cone.', passive: { name: 'Iron Hide', description: 'Fjord takes reduced damage from every hit.', statLabel: 'Damage Reduction', statKey: 'defense', format: 'percent' }, stats: { hp: 85, attack: 31, speed: 112, range: 94, interval: 1.05, regen: 0.05, defense: 20, abilityCooldown: 10, critChance: 5, critMultiplier: 2 } },
-    { id: 'Aram', role: 'Balanced duelist · parry and counter', flavor: 'A measured blade with a chance to stun attackers.', color: '#a4c5a1', starColor: '#c3cbd4', art: 'Aram character art.png', ability: 'Riposte', abilityDescription: 'Become briefly invulnerable and stun nearby slimes.', passive: { name: 'Disrupting Strike', description: 'Basic attacks have a chance to stun their target.', statLabel: 'Stun Chance', statKey: 'passiveChance', format: 'percent' }, stats: { hp: 50, attack: 22, speed: 145, range: 96, interval: 0.62, regen: 0.05, defense: 0, abilityCooldown: 10, critChance: 5, critMultiplier: 2 } },
-    { id: 'Gavrilta', role: 'Control mage · poison and roots', flavor: 'Green magic slows a crowd and wears it down over time.', color: '#82d66e', starColor: '#7064c2', art: 'Gavrilla character art.png', ability: 'Wild Growth', abilityDescription: 'Root nearby slimes and poison them over time.', passive: { name: 'Toxic Orb', description: 'Basic attacks poison and root the struck slime.', statLabel: 'Poison Damage', statKey: 'poisonDamage', format: 'perTick' }, stats: { hp: 30, attack: 15, speed: 130, range: 300, interval: 1.12, regen: 0.05, defense: 0, abilityCooldown: 10, critChance: 5, critMultiplier: 2 } }
+    { id: 'Ravela', role: 'Glass cannon · single-target archer', flavor: 'Mark a target so every hero can hit harder.', color: '#d8c7ef', starColor: '#17141b', art: 'Ravela character art.png', ability: 'Mark of Death', abilityDescription: 'Instantly mark the nearest slime within bow range. All damage to it increases by 50%.', passive: { name: 'Double Shot', description: 'Chance to fire one volley at the two nearest enemies.', statLabel: 'Double Shot Chance', statKey: 'doubleShotChance', format: 'percent' }, stats: { hp: 25, attack: 30, speed: 175, range: 340, interval: 0.62, regen: 0, defense: 0, abilityCooldown: 12, markBonus: 0.5, markDuration: 3.5, doubleShotChance: 0.1, critChance: 5, critMultiplier: 2 } },
+    { id: 'Fjord', role: 'Armored tank · close-range mace fighter', flavor: 'A steadfast brawler with a crushing mace and a fiery breath.', color: '#ec9b4b', starColor: '#e7a64e', art: 'Fjord character art.png', ability: 'Fire Breath', abilityDescription: 'Fjord belches forth fire at astonishing speed', passive: { name: 'Iron Hide', description: 'Fjord takes reduced damage from every hit.', statLabel: 'Damage Reduction', statKey: 'defense', format: 'percentPoints' }, stats: { hp: 200, attack: 31, speed: 100, range: 90, fireBreathRange: 250, interval: 1.05, regen: 1, defense: 20, abilityCooldown: 10, fireBreathMultiplier: 3, fireBreathAngle: 80, critChance: 5, critMultiplier: 2 } },
+    { id: 'Aram', role: 'Balanced duelist · parry and counter', flavor: 'A measured blade with a chance to stun attackers.', color: '#a4c5a1', starColor: '#c3cbd4', art: 'Aram character art.png', ability: 'Riposte', abilityDescription: 'Become briefly invulnerable and stun nearby slimes.', passive: { name: 'Parry', description: 'Basic attacks have a chance to stun their target.', statLabel: 'Stun Chance', statKey: 'passiveChance', format: 'percent' }, stats: { hp: 50, attack: 28, speed: 145, range: 100, riposteRadius: 150, riposteInvulnerabilityTime: 1.3, riposteStunDuration: 1.25, interval: 0.62, regen: 0.05, defense: 0, abilityCooldown: 14, passiveChance: 0.1, critChance: 10, critMultiplier: 2 } },
+    { id: 'Gavrilta', role: 'Control mage · poison and roots', flavor: 'Green magic slows a crowd and wears it down over time.', color: '#82d66e', starColor: '#7064c2', art: 'Gavrilla character art.png', ability: 'Overgrowth', abilityDescription: 'Sends poisonous roots surging toward nearby enemies, binding them and dealing poison damage.', passive: { name: 'Binding Vines', description: 'Thorn bursts poison and briefly root every slime caught in the bramble radius.', statLabel: 'Poison Damage', statKey: 'poisonDamage', format: 'perSecond' }, stats: { hp: 30, attack: 15, speed: 130, range: 300, attackRadius: 70, overgrowthRadius: 150, overgrowthRootDuration: 1.7, overgrowthPoisonDamage: 9, overgrowthPoisonDuration: 2.8, passiveRootDuration: 1, poisonInterval: 0.5, interval: 1.12, regen: 0.05, defense: 0, poisonDamage: 5, abilityCooldown: 10, critChance: 5, critMultiplier: 2 } }
   ];
   const UPGRADE_CARDS = {
     power: { icon: '⚔', name: 'Keen Edge', text: '+20% attack damage' },
@@ -24,8 +24,52 @@
     'ravela-move-speed': { icon: '➤', name: 'Fleet Step', text: '+10% movement speed' },
     'ravela-attack-speed': { icon: '➠', name: 'Rapid Volley', text: '+10% attack speed' },
     'ravela-crit-chance': { icon: '✧', name: 'Keen Eye', text: '+5% critical hit chance' },
-    'ravela-crit-damage': { icon: '✦', name: 'Lethal Aim', text: '+5% critical damage' }
+    'ravela-crit-damage': { icon: '✦', name: 'Lethal Aim', text: '+5% critical damage' },
+    'fjord-range': { icon: '➶', name: 'Siege Reach', text: '+10% range for mace and Fire Breath' },
+    'fjord-defense': { icon: '⬟', name: 'Blackened Plate', text: '+5% damage reduction' },
+    'fjord-vigor': { icon: '✚', name: 'Wyrmheart', text: '+20% max health and heal' },
+    'fjord-breath-damage': { icon: '♨', name: "Dragon's Furnace", text: '+0.2× Fire Breath damage, up to 5× attack' },
+    'fjord-mace-damage': { icon: '⚒', name: 'Cratering Mace', text: '+15% mace damage' },
+    'fjord-regen': { icon: '✚', name: 'Banked Embers', text: '+0.1 HP/s regeneration' },
+    'fjord-mark-duration': { icon: '⌛', name: 'Lingering Brand', text: '+0.5s to party Mark of Death, up to +2.5s' },
+    'fjord-breath-width': { icon: '♨', name: 'Wide Inferno', text: '+10° Fire Breath cone width' },
+    'fjord-breath-cooldown': { icon: '⌛', name: 'Quick Bellows', text: '−1s Fire Breath cooldown' },
+    'fjord-hp': { icon: '✚', name: 'Stoneblood', text: '+5 max HP' },
+    'fjord-move-speed': { icon: '➤', name: 'War March', text: '+10% movement speed' },
+    'fjord-attack-speed': { icon: '⚒', name: 'Swift Swing', text: '+10% mace attack speed' },
+    'fjord-crit-chance': { icon: '✧', name: 'Hot Eye', text: '+5% critical hit chance' },
+    'fjord-crit-damage': { icon: '✦', name: 'Shattering Blow', text: '+5% critical damage' },
+    'aram-range': { icon: '➶', name: 'Cloakbound Reach', text: '+10% range for shortsword and Riposte' },
+    'aram-defense': { icon: '⬟', name: 'Duskcloak Guard', text: '+5% damage reduction' },
+    'aram-vigor': { icon: '✚', name: "Oathkeeper's Resolve", text: '+20% max health and heal' },
+    'aram-riposte-invulnerability': { icon: '⬟', name: 'Unbroken Riposte', text: '+0.2s Riposte invulnerability' },
+    'aram-slash-damage': { icon: '⚔', name: 'Silver Oath', text: '+15% shortsword damage' },
+    'aram-regen': { icon: '✚', name: 'Stillwater Vigor', text: '+0.1 HP/s regeneration' },
+    'aram-riposte-stun': { icon: '✦', name: 'Countering Measure', text: '+0.25s Riposte stun' },
+    'aram-riposte-radius': { icon: '◉', name: 'Radiant Parry', text: '+10% Riposte radius' },
+    'aram-riposte-cooldown': { icon: '⌛', name: 'Quickened Riposte', text: '−1s Riposte cooldown' },
+    'aram-hp': { icon: '✚', name: "Knight's Endurance", text: '+5 max HP' },
+    'aram-move-speed': { icon: '➤', name: 'Cloakstep', text: '+10% movement speed' },
+    'aram-attack-speed': { icon: '⚔', name: 'Dancing Steel', text: '+10% shortsword attack speed' },
+    'aram-crit-chance': { icon: '✧', name: "Fencer's Eye", text: '+5% critical hit chance' },
+    'aram-crit-damage': { icon: '✦', name: 'Oathsplitter', text: '+5% critical damage' },
+    'gavrilta-range': { icon: '➶', name: 'Briarbound Reach', text: '+10% bramble sprout and Overgrowth range' },
+    'gavrilta-defense': { icon: '⬟', name: 'Thornweave Mantle', text: '+5% damage reduction' },
+    'gavrilta-vigor': { icon: '✚', name: 'Elderroot Vitality', text: '+20% max health and heal' },
+    'gavrilta-root-duration': { icon: '⌛', name: 'Snaring Tendrils', text: '+0.25s Overgrowth root and +0.2s Binding Vines root' },
+    'gavrilta-thorn-damage': { icon: '♧', name: 'Briarspike Bloom', text: '+15% thorn burst damage' },
+    'gavrilta-regen': { icon: '✚', name: 'Verdant Renewal', text: '+0.1 HP/s regeneration' },
+    'gavrilta-binding-vines': { icon: '♧', name: 'Venomous Binding', text: '+1 poison damage/s and +0.3s poison duration' },
+    'gavrilta-overgrowth-radius': { icon: '◉', name: 'Rootreach Circle', text: '+10% Overgrowth radius' },
+    'gavrilta-overgrowth-cooldown': { icon: '⌛', name: 'Quickened Overgrowth', text: '−1s Overgrowth cooldown' },
+    'gavrilta-hp': { icon: '✚', name: 'Heartwood Reserve', text: '+5 max HP' },
+    'gavrilta-move-speed': { icon: '➤', name: 'Greenstep', text: '+10% movement speed' },
+    'gavrilta-attack-speed': { icon: '♧', name: 'Thornwhisper Rhythm', text: '+10% thorn burst attack speed' },
+    'gavrilta-crit-chance': { icon: '✧', name: 'Witchwood Insight', text: '+5% critical hit chance' },
+    'gavrilta-crit-damage': { icon: '✦', name: 'Bramble Ruin', text: '+5% critical damage' }
   };
+  let accountEpoch=0;
+  let account = null, connectionFailures = 0, tutorialRun = null;
   const MOVEMENT_KEY_CODES = { KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd' };
   const app = document.querySelector('#app');
   const toastNode = document.querySelector('#toast');
@@ -76,16 +120,50 @@
   let overlayStateKey = '';
   const slimeSpriteCache = new Map();
   const ravelaAimAngles = new Map();
+  const fjordAimAngles = new Map();
+  const aramAimAngles = new Map();
+  const gavriltaAimAngles = new Map();
   const markSmokeOrigins = new Map();
+  const ARENA_ART=loadGameArt('Roman coliseum arena.png');
+  let arenaArtDrawn=false;
   const RAVELA_GAME_ART = {
     sprite: loadGameArt('Ravela top-down sprite.png'),
     bow: loadGameArt('Ravela bone bow.png'),
     arrow: loadGameArt('Ravela bone arrow.png')
   };
+  const FJORD_GAME_ART = {
+    sprite: loadGameArt('Fjord top-down sprite.png'),
+    shield: loadGameArt('Fjord fire shield.png'),
+    mace: loadGameArt('Fjord war mace.png')
+  };
+  const ARAM_GAME_ART = {
+    sprite: loadGameArt('Aram top-down sprite.png'),
+    sword: loadGameArt('Aram shortsword.png')
+  };
+  const GAVRILTA_GAME_ART = {
+    sprite: loadGameArt('Gavrilta top-down sprite.png'),
+    staff: loadGameArt('Gavrilta thorn staff.png')
+  };
+  const SLIME_PIXEL_ART = {
+    king: loadGameArt('King slime pixel sprite.png'),
+    blue: loadGameArt('Blue slime pixel sprite.png'),
+    green: loadGameArt('Green slime pixel sprite.png'),
+    red: loadGameArt('Red slime pixel sprite.png'),
+    yellow: loadGameArt('Yellow slime pixel sprite.png'),
+    black: loadGameArt('Black slime pixel sprite.png')
+  };
+  const POWERUP_ART = {
+    hp: loadGameArt('Blue slime potion.png'),
+    regen: loadGameArt('Green slime potion.png'),
+    attack: loadGameArt('Red slime potion.png'),
+    attackSpeed: loadGameArt('Yellow slime potion.png'),
+    moveSpeed: loadGameArt('Black slime potion.png')
+  };
+  const POWERUP_LABELS = { hp: 'HP UP', regen: 'REGEN UP', attack: 'ATK UP', attackSpeed: 'ATK SPD UP', moveSpeed: 'MOVE SPD UP' };
 
   function loadGameArt(filename) {
     const image = new Image();
-    image.src = `/art/${encodeURIComponent(filename)}?v=20261030-08`;
+    image.src = `/art/${encodeURIComponent(filename)}?v=2026103031-12`;
     return image;
   }
 
@@ -119,6 +197,66 @@
     app.style.filter = brightness === 50 ? '' : `brightness(${brightness / 50})`;
   }
   function hero(id) { return HEROES.find(h => h.id === id) || HEROES[0]; }
+  function sidebarMetricRows(rows) {
+    return rows.map(([label, value, rowClass = '']) => `<div class="ability-cooldown-row ${esc(rowClass)}"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`).join('');
+  }
+  function formatSidebarSeconds(value) {
+    return `${Number(value).toFixed(1).replace(/\.0$/, '')}s`;
+  }
+  function abilitySidebarMetrics(profile, stats) {
+    const range = Number(stats.range ?? profile.stats.range);
+    const fireBreathRange = Number(stats.fireBreathRange ?? profile.stats.fireBreathRange ?? range);
+    const markDuration = Number(stats.markDuration ?? profile.stats.markDuration ?? 3.5);
+    const markBonus = Number(stats.markBonus ?? profile.stats.markBonus ?? 0.5);
+    const attack = Number(stats.damage ?? stats.attack ?? profile.stats.attack);
+    const breathMultiplier = Number(stats.fireBreathMultiplier ?? profile.stats.fireBreathMultiplier ?? 3);
+    const breathAngle = Number(stats.fireBreathAngle ?? profile.stats.fireBreathAngle ?? 80);
+    const riposteRadius = Number(stats.riposteRadius ?? profile.stats.riposteRadius ?? 150);
+    const riposteInvulnerability = Number(stats.riposteInvulnerabilityTime ?? profile.stats.riposteInvulnerabilityTime ?? 1.3);
+    const riposteStun = Number(stats.riposteStunDuration ?? profile.stats.riposteStunDuration ?? 1.25);
+    const breathMultiplierText = breathMultiplier.toFixed(1).replace(/\.0$/, '');
+    switch (profile.id) {
+      case 'Ravela': return [
+        ['Mark range', String(Math.round(range))],
+        ['Mark duration', formatSidebarSeconds(markDuration)],
+        ['Damage increase', `${Math.round(markBonus * 100)}%`]
+      ];
+      case 'Fjord': return [
+        ['Breath range', String(Math.round(fireBreathRange))],
+        ['Cone width', `${Math.round(breathAngle)}°`],
+        ['Damage', `${Math.round(attack * breathMultiplier)} (${breathMultiplierText}× ATK)`, 'fjord-damage-metric']
+      ];
+      case 'Aram': return [
+        ['Invulnerability', formatSidebarSeconds(riposteInvulnerability)],
+        ['Riposte radius', String(Math.round(riposteRadius))],
+        ['Stun duration', formatSidebarSeconds(riposteStun)]
+      ];
+      case 'Gavrilta': return [
+        ['Root radius', String(Math.round(stats.overgrowthRadius ?? profile.stats.overgrowthRadius))],
+        ['Root duration', formatSidebarSeconds(stats.overgrowthRootDuration ?? profile.stats.overgrowthRootDuration)],
+        ['Poison damage', `${stats.overgrowthPoisonDamage ?? profile.stats.overgrowthPoisonDamage}/second`],
+        ['Poison duration', formatSidebarSeconds(stats.overgrowthPoisonDuration ?? profile.stats.overgrowthPoisonDuration)]
+      ];
+      default: return [];
+    }
+  }
+  function passiveSidebarMetrics(profile, stats) {
+    const passive = profile.passive;
+    const rawValue = Number(stats[passive.statKey] ?? profile.stats[passive.statKey] ?? 0);
+    const value = passive.format === 'percent'
+      ? `${Math.round(rawValue * 100)}%`
+      : passive.format === 'percentPoints'
+        ? `${Math.round(rawValue)}%`
+        : passive.format === 'perTick'
+          ? `${rawValue}/tick`
+          : passive.format === 'perSecond'
+            ? `${rawValue}/second`
+          : String(rawValue);
+    const rows = [[passive.statLabel, value]];
+    if (profile.id === 'Aram') rows.push(['Stun duration', '0.7s']);
+    if (profile.id === 'Gavrilta') rows.push(['Poison interval', formatSidebarSeconds(stats.poisonInterval ?? profile.stats.poisonInterval)], ['Root duration', formatSidebarSeconds(stats.passiveRootDuration ?? profile.stats.passiveRootDuration)], ['Burst radius', String(Math.round(stats.attackRadius ?? profile.stats.attackRadius))]);
+    return rows;
+  }
   function getSelf() { return currentRoom?.players?.find(p => p.id === playerId); }
   function formatRunTime(seconds) {
     const total = Math.max(0, Math.floor(Number(seconds) || 0));
@@ -136,12 +274,13 @@
     toastHandle = setTimeout(() => toastNode.classList.remove('show'), 2600);
   }
   async function api(url, body, method = 'POST') {
-    const response = await fetch(url, {
+    let response;
+    try { response = await fetch(url, {
       method,
       headers: body ? { 'Content-Type': 'application/json' } : undefined,
       body: body ? JSON.stringify(body) : undefined,
-      cache: 'no-store'
-    });
+      cache: 'no-store', signal: AbortSignal.timeout(10000)
+    }); } catch(error) { throw new Error(navigator.onLine ? 'Cannot reach the game server. Check your connection and try again.' : 'You are offline. Reconnect to continue.'); }
     let payload = {};
     try { payload = await response.json(); } catch { /* server returned no json */ }
     if (!response.ok) throw new Error(payload.error || `Request failed (${response.status})`);
@@ -156,6 +295,89 @@
     selectedHero = value;
   }
   function gearButton() { return '<button class="gear-btn" type="button" title="Settings and controls" aria-label="Settings and controls" data-action="settings">⚙</button>'; }
+  const combatAudio={run:null,seen:new Set(),cache:new Map(),active:new Set(),charges:new Map()};
+  function combatBuffer(kind){
+    if(combatAudio.cache.has(kind))return combatAudio.cache.get(kind);
+    const rate=24000,durations={arrow:.24,mace:.38,sword:.27,brush:.48,riposte:1.05,mark:1.5,fire:1.25,bell:2.2,squelch:.41,greenSlime:.46,blackSlime:.56,heavySlime:.7,triple:.62,jump:1.8,wind:.92,electric:2,lightning:.33,explosion:.85,hover:.12},duration=durations[kind];
+    const buffer=gameAudio.context.createBuffer(1,Math.ceil(rate*duration),rate),out=buffer.getChannelData(0);let seed=1783,low=0,phase=0;
+    for(let i=0;i<out.length;i++){
+      const t=i/rate,p=t/duration;seed^=seed<<13;seed^=seed>>>17;seed^=seed<<5;const n=(seed>>>0)/2147483648-1;low+=.08*(n-low);const high=n-low;let v=0;
+      if(kind==='hover'){v=(Math.sin(2*Math.PI*(1750*t+1500*t*t))+.3*Math.sin(2*Math.PI*2800*t))*.16*Math.exp(-t*34)*(1-Math.exp(-t*700));}
+      if(kind==='arrow'){const env=Math.exp(-t*25)*(1-Math.exp(-t*300));v=high*.36*env+Math.sin(2*Math.PI*(430*t-420*t*t))*.22*Math.exp(-t*35);}
+      if(kind==='mace'){const env=Math.sin(Math.PI*p)**1.2;v=low*1.6*env+high*.14*env+Math.sin(2*Math.PI*(90*t-60*t*t))*.11*Math.exp(-t*9);}
+      if(kind==='sword'){const env=Math.sin(Math.PI*p)**1.4;v=high*.27*env+low*.35*env+Math.sin(2*Math.PI*(1350*t+300*t*t))*.06*Math.exp(-t*14);}
+      if(kind==='brush'){const rustle=(.6+.4*Math.sin(2*Math.PI*23*t))*Math.sin(Math.PI*p);v=(high*.25+low*.8)*rustle;v+=Math.sin(2*Math.PI*145*t)*.06*Math.exp(-t*15);}
+      if(kind==='riposte'){v=(Math.sin(2*Math.PI*1480*t)+.45*Math.sin(2*Math.PI*2220*t)+.24*Math.sin(2*Math.PI*3715*t))*.14*Math.exp(-t*5)*(1-Math.exp(-t*200))+high*.15*Math.exp(-t*30);}
+      if(kind==='mark'){const rise=Math.sin(Math.PI*p)**2;v=low*.9*rise+Math.sin(2*Math.PI*(55*t-8*t*t))*.15*rise+Math.sin(2*Math.PI*(940*t-200*t*t))*.035*rise;for(const at of [.62,.82]){const age=t-at;if(age>=0)v+=Math.sin(2*Math.PI*48*age)*.32*Math.exp(-age*19)*(1-Math.exp(-age*160));}}
+      if(kind==='fire'){const env=Math.min(1,t/.08)*Math.min(1,(duration-t)/.3);v=(low*1.15+high*.18)*env*(.75+.25*Math.sin(2*Math.PI*17*t));if(n>.96)v+=high*.1*env;}
+      if(kind==='bell'){const env=(1-Math.exp(-t*250))*Math.exp(-t*2);for(const [ratio,amp] of [[1,.2],[2.01,.12],[2.76,.09],[4.07,.06],[5.4,.025]])v+=Math.sin(2*Math.PI*392*ratio*t)*amp*env*Math.exp(-t*(ratio-1)*.35);}
+      if(['squelch','greenSlime','blackSlime','heavySlime'].includes(kind)){
+        const heavy=kind==='heavySlime',f=heavy?65:kind==='blackSlime'?85:kind==='greenSlime'?145:190;
+        const env=(1-Math.exp(-t*110))*Math.exp(-t*(heavy?5:9));v=(Math.sin(2*Math.PI*(f*t-45*t*t))*.34+low*1.5)*env;
+        for(const at of [.08,.17]){const age=t-at;if(age>0)v+=Math.sin(2*Math.PI*(f*1.7*age-100*age*age))*.12*Math.exp(-age*22);}
+      }
+      if(kind==='triple'){for(const at of [0,.055,.11]){const age=t-at;if(age>=0){const env=(1-Math.exp(-age*80))*Math.exp(-age*9);v+=(low*.9+high*.15+Math.sin(2*Math.PI*(125*age-60*age*age))*.12)*env;}}}
+      if(kind==='jump'){const pulse=Math.exp(-t*7)+Math.exp(-(((t-1.5)/.2)**2));v=(low*1.9+high*.2)*pulse*Math.min(1,t*70);}
+      if(kind==='wind'){const env=Math.sin(Math.PI*p)**.7;v=(low*1.7+high*.12)*env*(.65+.35*Math.sin(2*Math.PI*12*t))+Math.sin(2*Math.PI*90*t)*.09*env;}
+      if(kind==='electric'){phase+=2*Math.PI*(180+900*p*p)/rate;v=(Math.sin(phase)+.25*Math.sin(phase*2.013))*.11*(.2+.8*p)+high*.1*(.3+.7*p)*(.6+.4*Math.sin(2*Math.PI*(9*t+12*t*t)));}
+      if(kind==='lightning'){v=(high*.55+low*1.1)*Math.exp(-t*12)*(1-Math.exp(-t*500))+Math.sin(2*Math.PI*(100*t-70*t*t))*.15*Math.exp(-t*13);}
+      if(kind==='explosion'){const env=(1-Math.exp(-t*400))*Math.exp(-t*7);v=(low*2.3+high*.25+Math.sin(2*Math.PI*(65*t-25*t*t))*.4)*env;}
+      const edge=Math.min(1,t/.004)*Math.min(1,(duration-t)/.035);out[i]=Math.tanh(v)*edge;
+    }
+    combatAudio.cache.set(kind,buffer);return buffer;
+  }
+  function playCombatAudio(kind,x){
+    if(!gameAudio.context||gameAudio.context.state!=='running'||document.hidden||volume<=0||masterVolume<=0||combatAudio.active.size>=18)return;
+    const source=gameAudio.context.createBufferSource();source.buffer=combatBuffer(kind);source.playbackRate.value=kind==='bell'||kind==='mark'?1:.96+Math.random()*.08;
+    const gain=gameAudio.context.createGain();gain.gain.value=kind==='hover'?.2:kind==='mark'||kind==='bell'?.8:.65;
+    const pan=gameAudio.context.createStereoPanner();pan.pan.value=Math.max(-.65,Math.min(.65,((x??600)-(getSelf()?.x??600))/700));
+    source.connect(gain);gain.connect(pan);pan.connect(gameAudio.sfxGain);combatAudio.active.add(source);
+    source.onended=()=>{source.disconnect();gain.disconnect();pan.disconnect();combatAudio.active.delete(source);};source.start();source.combatGain=gain;return source;
+  }
+  function syncCombatAudio(){
+    const g=currentRoom?.game;if(!g||g.paused||g.phase!=='wave')return;
+    if(combatAudio.run!==g.runId){combatAudio.run=g.runId;combatAudio.seen.clear();}
+    const types={'bow-shot':'arrow','mace-sweep':'mace','sword-sweep':'sword','thorn-burst':'brush','riposte-wave':'riposte',mark:'mark',breath:'fire','staff-cast':'bell','blue-strike-hit':'squelch','black-rain-impact':'blackSlime','red-detonation':'explosion'};
+    for(const e of g.effects||[]){const soundKind=e.kind==='enemy-audio'?e.sound:types[e.kind];if(!soundKind)continue;const key=e.kind==='bow-shot'?'shot:'+e.projectileId:'fx:'+e.id;if(combatAudio.seen.has(key))continue;combatAudio.seen.add(key);if(e.life>.04)playCombatAudio(soundKind,e.x);}
+    const liveCharges=new Set();
+    for(const enemy of g.enemies||[]){const c=enemy.attackCharge;if(!c)continue;
+      const kind=c.kind==='yellow-dash'&&c.phase!=='dash'?'electric':c.kind==='king-jump'?'jump':c.kind==='king-spin'?'wind':null;
+      if(!kind)continue;const key='charge:'+enemy.id+':'+c.startedAt;liveCharges.add(key);
+      if(!combatAudio.seen.has(key)){combatAudio.seen.add(key);const source=playCombatAudio(kind,enemy.x);if(source)combatAudio.charges.set(key,source);}
+    }
+    for(const [key,source] of combatAudio.charges)if(!liveCharges.has(key)||g.paused){source.combatGain.gain.setTargetAtTime(0,gameAudio.context.currentTime,.012);try{source.stop(gameAudio.context.currentTime+.05);}catch{}combatAudio.charges.delete(key);}
+    // Support running servers that predate the persistent bow-shot cue.
+    for(const p of g.projectiles||[]){if(p.type!=='hero'||currentRoom.players.find(player=>player.id===p.from)?.hero!=='Ravela')continue;const key='shot:'+p.id;if(combatAudio.seen.has(key))continue;combatAudio.seen.add(key);playCombatAudio('arrow',p.originX??p.x);}
+    if(combatAudio.seen.size>2048)combatAudio.seen=new Set([...combatAudio.seen].slice(-1024));
+  }
+
+  const gameAudio={context:null,musicGain:null,sfxGain:null,buffers:null,loading:null,source:null,run:null,played:new Set()};
+  function syncGameAudio(){
+    const audio=gameAudio;if(!audio.context)return;
+    const g=currentRoom?.game,active=currentScreen==='game'&&currentRoom?.status==='playing';
+    audio.musicGain.gain.setTargetAtTime(active&&!g?.paused&&!document.hidden?masterVolume*musicVolume*.42:0,audio.context.currentTime,.12);
+    audio.sfxGain.gain.setTargetAtTime(masterVolume*volume*.7,audio.context.currentTime,.025);
+    if(!active||g?.paused||document.hidden){for(const source of combatAudio.active){source.combatGain.gain.setTargetAtTime(0,audio.context.currentTime,.012);try{source.stop(audio.context.currentTime+.05);}catch{}}combatAudio.charges.clear();}
+    if(!active){if(audio.source){audio.source.stop();audio.source.disconnect();audio.source=null;}audio.run=null;return;}
+    syncCombatAudio();
+    if(!audio.buffers)return;
+    if(audio.run!==g.runId){if(audio.source){audio.source.stop();audio.source.disconnect();}const track=audio.context.createBufferSource();track.buffer=audio.buffers.music;track.loop=true;track.connect(audio.musicGain);track.start();audio.source=track;audio.run=g.runId;}
+    if(!audio.played.has(g.runId)){audio.played.add(g.runId);if(audio.played.size>128)audio.played.delete(audio.played.values().next().value);const slime=audio.context.createBufferSource();slime.buffer=audio.buffers.slime;slime.connect(audio.sfxGain);slime.start();slime.onended=()=>slime.disconnect();}
+  }
+  async function unlockGameAudio(){
+    try{
+      const audio=gameAudio;
+      if(!audio.context){audio.context=new(window.AudioContext||window.webkitAudioContext)();audio.musicGain=audio.context.createGain();audio.sfxGain=audio.context.createGain();audio.musicGain.gain.value=0;audio.musicGain.connect(audio.context.destination);audio.sfxGain.connect(audio.context.destination);}
+      if(audio.context.state==='suspended')await audio.context.resume();
+      if(!audio.loading)audio.loading=Promise.all(['hills-of-the-colosseum.wav','slime-run-start.wav'].map(async name=>{const response=await fetch('/audio/'+name+'?v=20261030-44');if(!response.ok)throw Error('Audio asset unavailable');return audio.context.decodeAudioData(await response.arrayBuffer());})).then(([music,slime])=>{audio.buffers={music,slime};syncGameAudio();}).catch(()=>{audio.loading=null;});
+      syncGameAudio();
+    }catch{/* Browsers may defer audio until another explicit gesture. */}
+  }
+  document.addEventListener('pointerover',event=>{if(event.pointerType==='touch')return;const button=event.target.closest?.('button,[role="button"],input[type="submit"],input[type="button"]');if(!button||button.disabled||button.getAttribute('aria-disabled')==='true'||(event.relatedTarget&&button.contains(event.relatedTarget)))return;playCombatAudio('hover');},{passive:true});
+  document.addEventListener('pointerdown',()=>void unlockGameAudio(),{passive:true});
+  document.addEventListener('keydown',()=>void unlockGameAudio());
+  document.addEventListener('visibilitychange',syncGameAudio);
+
   function sound(frequency = 440, duration = 0.08, type = 'sine') {
     if (volume <= 0 || masterVolume <= 0) return;
     try {
@@ -171,7 +393,9 @@
     } catch { /* audio is an optional browser feature */ }
   }
   function setScreen(name) {
+    updateAccountIdentity();
     currentScreen = name;
+    syncGameAudio();
     if (name !== 'game') stopDrawing();
     if (name !== 'browse-groups') {
       clearInterval(browseGroupsTimer);
@@ -182,10 +406,79 @@
   function renderTitleScreen() {
     setScreen('title');
     app.innerHTML = `<section class="screen title-screen" aria-label="Slime Slayer title screen">
-      <div class="title-art-placeholder" role="img" aria-label="Placeholder for title screen background art"></div>
+      <div class="title-art" role="img" aria-label="Ravela, Fjord, Aram and Gavrilta stand before a slime-covered grassy hill and the great coliseum"></div>
       <div class="title-screen-content"><h1>Slime Slayer</h1><button class="press-start" type="button">Press to start</button></div>
     </section>`;
     app.querySelector('.title-screen').addEventListener('click', renderMenu);
+  }
+
+  function upgradeAppearance(id){
+    if(/regen/.test(id))return {icon:'♻',color:'#80db99'};
+    if(/hp|health|vigor/.test(id))return {icon:'♥',color:'#f78191'};
+    if(/defense|invulnerability/.test(id))return {icon:'⬟',color:'#a6cce9'};
+    if(/attack-speed/.test(id))return {icon:'ϟ',color:'#ffe078'};
+    if(/move-speed|swift/.test(id))return {icon:'➤',color:'#7ddcdd'};
+    if(/cooldown|focus/.test(id))return {icon:'⌛',color:'#9eb9ff'};
+    if(/crit/.test(id))return {icon:'✦',color:'#f4b8ff'};
+    if(/range|radius|width/.test(id))return {icon:'◎',color:'#97d2fa'};
+    if(/damage|power|shot|slash|mace/.test(id))return {icon:'⚔',color:'#ffac70'};
+    return {icon:UPGRADE_CARDS[id]?.icon||'✦',color:'#bba4ef'};
+  }
+  function updateAccountIdentity(){
+    let label=document.querySelector('#account-identity');
+    if(!label){label=document.createElement('button');label.type='button';label.id='account-identity';label.className='account-identity';label.onclick=showSignOut;document.body.append(label);}
+    label.textContent=account?.username||'';label.setAttribute('aria-label',account?'Sign out of '+account.username:'Account');label.title='Click to sign out';label.hidden=!account;document.body.classList.toggle('has-account',Boolean(account));
+  }
+  function levelBadge(level,name){return '<span class="level-shield" aria-label="'+esc(name)+' level '+level+'"><span>'+level+'</span></span>';}
+  async function refreshAccount(){const epoch=accountEpoch;try{const result=await api('/api/account',null,'GET');if(epoch!==accountEpoch)return;account=result.account;if(account)persistName(account.username);updateAccountIdentity();}catch(e){toastError(e);}}
+  function showSignOut(){
+    if(!account)return;
+    const modal=accountModal('Sign out', '<p>Sign out of <strong>'+esc(account.username)+'</strong>?</p>'+(currentRoom?'<p class="muted">This also leaves your current party or run. Earned account progress will be saved.</p>':'')+'<button class="btn" id="confirm-signout">Sign out</button>');
+    modal.querySelector('#confirm-signout').onclick=async e=>{e.target.disabled=true;try{
+      accountEpoch++;
+      if(currentRoom)await act('leave');
+      await api('/api/account/logout',{});
+      account=null;accountEpoch++;clearInterval(pollHandle);clearRoomIdentity();currentRoom=null;
+      persistName('');localStorage.removeItem('slime-slayer-name');localStorage.setItem('slime-account-signout',String(Date.now()));
+      updateAccountIdentity();document.querySelector('#modal-root')?.remove();modal.remove();renderMenu();
+    }catch(error){toastError(error);e.target.disabled=false;}};
+  }
+  window.addEventListener('storage',event=>{if(event.key==='slime-account-signout'){accountEpoch++;account=null;clearInterval(pollHandle);clearRoomIdentity();currentRoom=null;persistName('');updateAccountIdentity();document.querySelector('#account-modal')?.remove();document.querySelector('#modal-root')?.remove();renderMenu();}});
+
+  function accountModal(title,content){
+    document.querySelector('#account-modal')?.remove();const modal=document.createElement('div');modal.id='account-modal';modal.className='overlay account-overlay';
+    modal.innerHTML=`<section class="overlay-card account-card" role="dialog" aria-modal="true" aria-label="${esc(title)}"><button class="btn quiet modal-close" aria-label="Close">×</button><h2>${esc(title)}</h2>${content}</section>`;
+    document.body.append(modal);modal.querySelector('.modal-close').onclick=()=>modal.remove();modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});modal.addEventListener('keydown',e=>{if(e.key==='Escape'&&modal.dataset.tutorial!=='true')modal.remove();if(e.key==='Tab'){const nodes=[...modal.querySelectorAll('button,input,a')].filter(n=>!n.disabled);if(e.shiftKey&&document.activeElement===nodes[0]){e.preventDefault();nodes.at(-1).focus();}else if(!e.shiftKey&&document.activeElement===nodes.at(-1)){e.preventDefault();nodes[0].focus();}}});modal.querySelector('input,button')?.focus();return modal;
+  }
+  function showAccount(register=false){
+    if(account){void showAchievements();return;}
+    const modal=accountModal(register?'Create account':'Welcome back',`<p class="muted small">Save scores, unlock champion achievements, and earn character levels.</p><form id="auth-form"><label>Username<input class="text-input" name="username" minlength="3" maxlength="18" pattern="[A-Za-z0-9_]{3,18}" autocomplete="username" required></label><label>Password<input class="text-input" name="password" type="password" minlength="8" maxlength="128" autocomplete="${register?'new-password':'current-password'}" required></label>${register?'<label>Confirm password<input class="text-input" name="confirm" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></label>':''}<p class="form-error" role="alert"></p><button class="btn" type="submit">${register?'Create account':'Sign in'}</button></form><button class="btn quiet auth-toggle">${register?'Already have an account? Sign in':'New here? Create account'}</button><p class="small muted">Usernames are unique, ignoring capitalization. Use 3–18 letters, numbers, or underscores. Passwords require at least 8 characters.</p>`);
+    modal.querySelectorAll('input[type="password"]').forEach((input,index)=>{
+      const wrap=document.createElement('span');wrap.className='password-field';input.replaceWith(wrap);wrap.append(input);
+      const toggle=document.createElement('button');toggle.type='button';toggle.className='password-eye';toggle.setAttribute('aria-label','Show '+(index?'confirmation password':'password'));toggle.setAttribute('aria-pressed','false');
+      toggle.innerHTML='<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>';
+      toggle.onclick=()=>{const show=input.type==='password';input.type=show?'text':'password';toggle.setAttribute('aria-pressed',String(show));toggle.setAttribute('aria-label',(show?'Hide ':'Show ')+(index?'confirmation password':'password'));};wrap.append(toggle);
+    });
+    modal.querySelector('.auth-toggle').onclick=()=>showAccount(!register);
+    modal.querySelector('form').onsubmit=async e=>{e.preventDefault();const form=e.target;const button=form.querySelector('button[type="submit"]');button.disabled=true;const b=Object.fromEntries(new FormData(form));try{accountEpoch++;account=(await api(`/api/account/${register?'register':'login'}`,b)).account;persistName(account.username);modal.remove();renderMenu();}catch(error){modal.querySelector('.form-error').textContent=error.message;}finally{button.disabled=false;}};
+  }
+  async function showLeaderboard(page=0){
+    const modal=accountModal('Global high scores','<p role="status">Loading scores…</p>');
+    try{const data=await api(`/api/leaderboard?page=${page}`,null,'GET');modal.querySelector('[role="status"]').outerHTML=`<p class="muted small">Best individual run per account · ${data.total} accounts</p><div class="leaderboard-scroll"><table class="global-table"><thead><tr><th>Rank</th><th>Player</th><th>Best score</th></tr></thead><tbody>${data.rows.map((r,i)=>`<tr><td>${page*50+i+1}</td><td>${esc(r.username)}</td><td>${r.score.toLocaleString()}</td></tr>`).join('')||'<tr><td colspan="3">No accounts yet. Be the first!</td></tr>'}</tbody></table></div><div class="result-actions"><button class="btn quiet" data-page="${page-1}" ${page===0?'disabled':''}>Previous</button><span>Page ${page+1}</span><button class="btn quiet" data-page="${page+1}" ${(page+1)*50>=data.total?'disabled':''}>Next</button></div>`;modal.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>showLeaderboard(Number(b.dataset.page)));}catch(e){modal.querySelector('[role="status"]').textContent=e.message;}
+  }
+  async function showAchievements(){
+    await refreshAccount();if(!account){showAccount();return;}
+    accountModal(`${account.username} · Champion legacy`,`<p>High score: <strong>${account.highscore.toLocaleString()}</strong></p><p class="muted small">Complete ten waves with each champion to earn their golden splash portrait.</p><div class="achievement-grid">${account.characters.map(p=>`<article class="achievement-tile ${p.achievement?'unlocked':'locked'}"><div class="achievement-frame"><img src="/art/${encodeURIComponent(p.hero+' golden achievement.png')}?v=20261030-33" alt="Golden ${p.hero} achievement" width="80" height="80"></div><strong>${p.hero}</strong><span>${p.achievement?'Ten-wave champion':'Complete 10 waves to unlock'}</span></article>`).join('')}</div>`);
+  }
+  async function showTutorial(){
+    if(account?.tutorialSeen||(!account&&sessionStorage.getItem('slime-hide-tutorial')))return;
+    if(currentScreen!=='game')return;
+    const solo=currentRoom?.mode==='solo';if(solo&&!currentRoom.game.paused)await act('pause',true).catch(()=>{});
+    const modal=accountModal('Your first steps in the arena',`<p>Move with WASD or arrow keys. On a phone, drag the thumbstick. Your champion attacks nearby slimes automatically.</p><p>Press E or tap the ability button to cast your special ability. Avoid red warnings, collect potions, and choose an upgrade after each wave.</p><p>Clear ten waves to win, then continue into endless mode. Escape pauses solo play or opens the leave prompt in multiplayer.</p>${account?'':'<label class="setting-toggle tutorial-toggle"><input type="checkbox" id="hide-tutorial"><span>Don’t show again during this browser session</span></label>'}<button class="btn" id="tutorial-done">Ready to fight</button>`);
+    modal.dataset.tutorial='true';
+    const dismiss=async()=>{if(account){try{await api('/api/account/tutorial',{});account.tutorialSeen=true;}catch(e){toastError(e);}}else if(modal.querySelector('#hide-tutorial')?.checked)sessionStorage.setItem('slime-hide-tutorial','1');modal.remove();if(solo&&currentRoom?.status==='playing')await act('pause',false).catch(()=>{});};
+    modal.addEventListener('keydown',e=>{if(e.key==='Escape'){e.stopPropagation();void dismiss();}});
+    modal.querySelector('#tutorial-done').onclick=dismiss;modal.querySelector('.modal-close').onclick=dismiss;modal.addEventListener('click',e=>{if(e.target===modal)void dismiss();});
   }
 
   function renderMenu() {
@@ -196,7 +489,7 @@
         <div class="menu-wrap">
           <header class="brand">
             <div class="brand-mark">✦</div>
-            <h1>SLIME SLAYER</h1>
+            <h1>Slime Slayer</h1>
             <div class="subtitle">Roguelike</div>
           </header>
           <p class="intro"><span class="intro-lead">Hold the coliseum against a tsunami of slime!</span><span class="intro-support">Choose your champion to brave the tides alone or survive with your fellow adventurers</span></p>
@@ -204,10 +497,13 @@
             <button class="mode-card" data-action="solo"><span class="mode-symbol">⚔</span><span class="mode-title">Solo</span><span class="mode-caption">Singleplayer</span></button>
             <button class="mode-card" data-action="party"><span class="mode-symbol party-pawns" aria-hidden="true">♟♟♟♟</span><span class="mode-title">Party</span><span class="mode-caption">Multiplayer</span></button>
           </div>
-          <footer class="menu-foot">Up to four players · WASD / arrows / drag to move · E / tap button to use your ability</footer>
+          <div class="account-menu">${account?'':'<button class="btn quiet" data-action="account">Sign in / Create account</button>'}<button class="btn quiet" data-action="leaderboard">Global leaderboard</button>${account?'<button class="btn quiet" data-action="achievements">Achievements</button>':''}</div><footer class="menu-foot">Up to four players · WASD / arrows / drag to move · E / tap button to use your ability</footer>
           <button class="btn quiet credits-trigger" type="button" data-action="credits">Credits</button>
         </div>
       </section>`;
+    app.querySelector('[data-action="account"]')?.addEventListener('click',()=>showAccount());
+    app.querySelector('[data-action="leaderboard"]').addEventListener('click',()=>showLeaderboard());
+    app.querySelector('[data-action="achievements"]')?.addEventListener('click',showAchievements);
     app.querySelector('[data-action="solo"]').addEventListener('click', () => { setHero(null); renderSoloSelect(); });
     app.querySelector('[data-action="party"]').addEventListener('click', renderPartyChoice);
     app.querySelector('[data-action="credits"]').addEventListener('click', renderCredits);
@@ -393,7 +689,7 @@
       <p class="intro">Select your champion. Each hero has a unique weapon and ability.</p>
       <div class="solo-hero-grid">${HEROES.map(h => heroCard(h, false)).join('')}</div>
       <div class="solo-specials"><button class="special-choice ${selectedHero === 'Random' ? 'selected' : ''}" data-select-hero="Random"><span class="random-mark">?</span><span><strong>Random</strong><small>Let fate choose your champion</small></span></button></div>
-      <div class="solo-bottom"><label class="sr-only" for="solo-player-name">Your name</label><input id="solo-player-name" class="text-input solo-name" maxlength="18" placeholder="Your name" value="${esc(playerName)}">
+      <div class="solo-bottom"><label class="sr-only" for="solo-player-name">Your name</label><input id="solo-player-name" ${account?'readonly':''} class="text-input solo-name" maxlength="18" placeholder="Your name" value="${esc(playerName)}">
       <button class="btn" data-action="begin" ${selectedHero ? '' : 'disabled'}>Enter the arena</button></div>
     </div></section>`;
     app.querySelector('[data-action="back"]').addEventListener('click', renderMenu);
@@ -408,7 +704,7 @@
   }
   function heroCard(h, compact = false, selected = selectedHero === h.id) {
     return `<button class="hero-card ${compact ? 'compact-hero-card' : ''} ${selected ? 'selected' : ''}" data-select-hero="${h.id}" aria-pressed="${selected}">
-      <div class="portrait"><img src="/art/${encodeURIComponent(h.art)}" alt="${h.id} character art"></div>
+      <div class="portrait"><img src="/art/${encodeURIComponent(h.art)}" alt="${h.id} character art">${account?levelBadge(account.characters.find(p=>p.hero===h.id)?.level||1,h.id):''}</div>
       <div class="hero-meta"><div class="hero-name"><span>${h.id}</span><span class="hero-star" style="color:${h.starColor}">✦</span></div><div class="hero-role">${h.role}</div><div class="hero-flair">${h.flavor}</div></div></button>`;
   }
   function renderSoloSelectKeepName() {
@@ -487,16 +783,21 @@
     if (polling || !roomKey || !playerId) return;
     polling = true;
     const pollStartedAt = performance.now();
+    const requestedRoomKey = roomKey;
     try {
       const result = await api(`/api/rooms/${encodeURIComponent(roomKey)}?playerId=${encodeURIComponent(playerId)}`, null, 'GET');
+      if(roomKey!==requestedRoomKey)return;
       const pingSample = performance.now() - pollStartedAt;
       measuredPingMs = measuredPingMs === null ? pingSample : measuredPingMs * .7 + pingSample * .3;
       // A GET that began before our character action was acknowledged may contain
       // the previous hero. Keep the immediate local choice until a later GET sees it.
       const preserveLobbyHero = currentScreen === 'lobby' && pollStartedAt < lobbyHeroActionAckAt;
+      if(connectionFailures) showToast('Connection restored.'); connectionFailures=0;
       acceptRoom(result.room, preserveLobbyHero);
     } catch (error) {
-      if (currentScreen === 'quitting') return;
+      if (roomKey !== requestedRoomKey || currentScreen === 'quitting') return;
+      connectionFailures++;
+      if(connectionFailures<5 && !/not found|not in the room|Sign in/i.test(error.message)){if(connectionFailures===1)showToast('Connection interrupted. Reconnecting…');return;}
       clearInterval(pollHandle);
       if (currentScreen !== 'menu') { clearRoomIdentity(); currentRoom = null; renderMenu(); }
       showToast(error.message || 'Room connection lost.');
@@ -520,6 +821,8 @@
     }
     recordSnapshot(room);
     currentRoom = room;
+    syncGameAudio();
+    if(room.status==='playing' && room.game?.runId!==tutorialRun) { tutorialRun=room.game?.runId; setTimeout(showTutorial,100); }
     rememberRoomIdentity(room);
     if (room.status === 'playing') {
       if (currentScreen !== 'game') enterGame();
@@ -592,8 +895,9 @@
   function renderLobby(initial = false) {
     setScreen('lobby');
     lobbyKey = '';
-    app.innerHTML = `<section class="screen lobby-screen">${gearButton()}<div class="lobby-panel" id="lobby-panel"></div></section>`;
+    app.innerHTML = `<section class="screen lobby-screen">${gearButton()}<div class="lobby-panel" id="lobby-panel"></div><section class="lobby-chat"><h2>Party chat</h2><div id="chat-messages" role="log" aria-live="polite"></div><form id="chat-form"><input class="text-input" id="chat-input" placeholder="Message your party…" maxlength="200" aria-label="Party message" required><button class="btn" type="submit">Send</button></form></section></section>`;
     app.querySelector('[data-action="settings"]').addEventListener('click', showSettings);
+    document.querySelector('#chat-form').onsubmit=async e=>{e.preventDefault();const input=document.querySelector('#chat-input');const text=input.value;try{await act('chat',text);input.value='';}catch{}};
     updateLobby(true);
   }
   function lobbySignature() {
@@ -603,6 +907,8 @@
   }
   function updateLobby(force = false) {
     if (!currentRoom || currentScreen !== 'lobby') return;
+    const messages=document.querySelector('#chat-messages');
+    if(messages && messages.dataset.last!==(currentRoom.chat?.at(-1)?.id||'')){messages.innerHTML=(currentRoom.chat||[]).map(m=>'<p><strong>'+esc(m.name)+':</strong> '+esc(m.text)+'</p>').join('');messages.dataset.last=currentRoom.chat?.at(-1)?.id||'';messages.scrollTop=messages.scrollHeight;}
     const signature = lobbySignature();
     if (!force && signature === lobbyKey) return;
     lobbyKey = signature;
@@ -616,10 +922,10 @@
       const isSelf = p.id === playerId;
       const h = HEROES.find(character => character.id === p.hero);
       const heroFace = h
-        ? `<img class="slot-portrait" src="/art/${encodeURIComponent(h.art)}" alt="${esc(h.id)} character art">`
+        ? `<div class="lobby-portrait-wrap"><img class="slot-portrait" src="/art/${encodeURIComponent(h.art)}" alt="${esc(h.id)} character art">${p.characterLevels?levelBadge(p.characterLevels[h.id]||1,h.id):''}</div>`
         : `<div class="slot-portrait empty-portrait ${p.hero === 'Random' ? 'random-portrait' : ''}"><span>${p.hero === 'Random' ? '?' : '＋'}</span></div>`;
       const nameControl = isSelf
-        ? `<label class="name-input-label" for="lobby-player-name">Your name</label><input id="lobby-player-name" class="text-input lobby-name-input" maxlength="18" value="${esc(p.name)}" aria-label="Your player name">`
+        ? `<label class="name-input-label" for="lobby-player-name">Your name</label><input id="lobby-player-name" class="text-input lobby-name-input" ${account?'readonly':''} maxlength="18" value="${esc(p.name)}" aria-label="Your player name">`
         : `<div class="slot-player-name">${esc(p.name)}</div>`;
       let selector = '';
       if (isSelf) {
@@ -688,10 +994,10 @@
     const card = document.querySelector('#lobby-panel .own-party-slot');
     if (!self || !card) return;
     const selected = HEROES.find(character => character.id === self.hero);
-    const portrait = card.querySelector('.slot-portrait');
+    const portrait = card.querySelector('.lobby-portrait-wrap') || card.querySelector('.slot-portrait');
     if (portrait) {
       portrait.outerHTML = selected
-        ? `<img class="slot-portrait" src="/art/${encodeURIComponent(selected.art)}" alt="${esc(selected.id)} character art">`
+        ? `<div class="lobby-portrait-wrap"><img class="slot-portrait" src="/art/${encodeURIComponent(selected.art)}" alt="${esc(selected.id)} character art">${self.characterLevels?levelBadge(self.characterLevels[selected.id]||1,selected.id):''}</div>`
         : `<div class="slot-portrait empty-portrait ${self.hero === 'Random' ? 'random-portrait' : ''}"><span>${self.hero === 'Random' ? '?' : '＋'}</span></div>`;
     }
     const title = card.querySelector('.character-current strong');
@@ -832,17 +1138,17 @@
             <section class="side-card controls-card"><div class="side-title">Controls</div><div class="controls-line"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>Move</span></div><div class="controls-line"><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd><span>Move</span></div><div class="controls-line"><kbd>E</kbd><span>Champion ability</span></div><div class="controls-line muted">Attacks happen automatically</div></section>
             ${solo ? `<section class="side-card solo-character-card"><div class="side-title">Your Champion</div><img class="solo-character-art" src="/art/${encodeURIComponent(selfHeroProfile.art)}" alt="${esc(selfHeroProfile.id)} character art"><div class="solo-character-name">${esc(selfHeroProfile.id)}</div></section>` : ''}
             ${solo ? '' : '<section class="side-card leaderboard-card"><div class="side-title">Player Leaderboard</div><div class="leaderboard-list" id="leaderboard-list"></div></section>'}
-            <section class="side-card ability-card"><div class="side-title">Special Ability</div><div class="ability-name" id="ability-name">${esc(getSelf()?.abilityName || selfHeroProfile.ability)}</div><p class="ability-description" id="ability-description">${esc(selfHeroProfile.abilityDescription)}</p><div class="ability-cooldown-row"><span>Cooldown</span><strong id="ability-cooldown">10s</strong></div><div class="mark-stats" id="mark-stats" ${selfHeroProfile.id === 'Ravela' ? '' : 'hidden'}><div class="ability-cooldown-row"><span>Mark range</span><strong id="mark-range">340</strong></div><div class="ability-cooldown-row"><span>Mark duration</span><strong id="mark-duration">3.5s</strong></div><div class="ability-cooldown-row"><span>Damage increase</span><strong id="mark-bonus">50%</strong></div></div><button class="ability-chip sidebar-ability" id="ability-chip" type="button">E · ${esc(getSelf()?.abilityName || 'Ability')}</button></section>
+            <section class="side-card ability-card"><div class="side-title">Special Ability</div><div class="ability-name" id="ability-name">${esc(selfHeroProfile.ability || getSelf()?.abilityName || 'Ability')}</div><p class="ability-description" id="ability-description">${esc(selfHeroProfile.abilityDescription)}</p><div class="ability-cooldown-row"><span>Cooldown</span><strong id="ability-cooldown">10s</strong></div><div class="sidebar-metrics" id="ability-stats"></div><button class="ability-chip sidebar-ability" id="ability-chip" type="button">E · ${esc(selfHeroProfile.ability || getSelf()?.abilityName || 'Ability')}</button></section>
           </aside>
           <div class="arena-wrap"><canvas id="arena-background" aria-hidden="true"></canvas><canvas id="arena" aria-label="Top-down slime arena"></canvas>
-            <div class="mobile-pad" id="mobile-pad" aria-label="Move your champion"></div>
+            <button class="mobile-cast btn" id="mobile-cast" aria-label="Cast special ability">Ability</button><div class="mobile-pad" id="mobile-pad" aria-label="Move your champion"></div>
             <div class="overlay" id="game-overlay" hidden></div>
           </div>
           <aside class="side-panel" aria-label="Arena information and champion stats">
             <section class="side-card radar-card"><div class="side-title">Arena Radar</div><div class="minimap" id="minimap"></div></section>
             <section class="side-card champion-stats-card"><div class="side-title">${solo ? 'Champion Stats' : 'Party Champion Stats'}</div><div id="party-status"></div></section>
             <section class="side-card run-totals-card"><div class="side-title">Run Stats</div><div class="run-total"><span>Time:</span><strong id="run-time">00:00</strong></div><div class="run-total"><span>Kills:</span><strong id="kill-count">0</strong></div><div class="run-total"><span>Damage Done:</span><strong id="team-damage">0</strong></div><div class="run-total"><span>${solo ? 'Score:' : 'Party Score:'}</span><strong id="team-score">0</strong></div></section>
-            <section class="side-card passive-card"><div class="side-title">Passive Ability</div><div class="ability-name" id="passive-name">${esc(selfHeroProfile.passive.name)}</div><p class="ability-description" id="passive-description">${esc(selfHeroProfile.passive.description)}</p><div class="ability-cooldown-row"><span id="passive-stat-label">${esc(selfHeroProfile.passive.statLabel)}</span><strong id="passive-stat-value">—</strong></div></section>
+            <section class="side-card passive-card"><div class="side-title">Passive Ability</div><div class="ability-name" id="passive-name">${esc(selfHeroProfile.passive.name)}</div><p class="ability-description" id="passive-description">${esc(selfHeroProfile.passive.description)}</p><div class="sidebar-metrics" id="passive-stats"></div></section>
           </aside>
         </div>
         <footer class="game-bottombar"><div class="hero-hud-group"><span id="hero-hud">${hero(getSelf()?.hero).id}</span><div class="hero-hp-track" id="hero-hp-track" role="progressbar" aria-label="Champion HP" aria-valuemin="0" aria-valuemax="${getSelf()?.maxHp || 100}" aria-valuenow="${Math.max(0, Math.ceil(getSelf()?.hp ?? 0))}"><div class="hero-hp-fill" id="hero-hp-fill" style="width:100%"></div></div></div><div class="game-footer-right"><span class="muted">${solo ? 'Solo · SURVIVE' : 'Multiplayer · SURVIVE'}</span>${solo ? '<button class="icon-btn solo-pause-btn" id="solo-pause" type="button" aria-label="Pause game" aria-pressed="false">ll</button>' : ''}</div></footer>
@@ -856,6 +1162,7 @@
       catch { /* act already displays the server error */ }
       finally { if(pauseButton.isConnected) pauseButton.disabled=false; }
     });
+    document.querySelector('#mobile-cast').onclick=()=>act('ability').catch(()=>{});
     setupMobilePad();
     warmSlimeSprites();
     startDrawing();
@@ -884,7 +1191,7 @@
       const dpr = Math.min(MAX_CANVAS_DPR, window.devicePixelRatio || 1);
       const w = Math.max(1, Math.floor(cssWidth * dpr));
       const h = Math.max(1, Math.floor(cssHeight * dpr));
-      if (w !== lastW || h !== lastH) {
+      if (w !== lastW || h !== lastH || (!arenaArtDrawn && ARENA_ART.complete && ARENA_ART.naturalWidth)) {
         canvas.width = w; canvas.height = h; lastW = w; lastH = h;
         background.width = w; background.height = h;
         drawArenaBackground(backgroundCtx, w, h);
@@ -921,6 +1228,8 @@
     const g = ctx.createLinearGradient(0, 0, 1200, 1200);
     g.addColorStop(0, '#49403c'); g.addColorStop(.48, '#393538'); g.addColorStop(1, '#29272d');
     ctx.fillStyle = g; ctx.fillRect(0, 0, 1200, 1200);
+    if(ARENA_ART.complete && ARENA_ART.naturalWidth){ctx.imageSmoothingEnabled=false;ctx.save();ctx.filter="brightness(80%)";ctx.drawImage(ARENA_ART,-48,-55,1296,1344);ctx.restore();arenaArtDrawn=true;ctx.setTransform(1,0,0,1,0,0);return;}
+    arenaArtDrawn=false;
     // Stonework around the circular coliseum floor.
     ctx.strokeStyle = 'rgba(13,12,15,.23)'; ctx.lineWidth = 1;
     for (let x = 18; x < 1200; x += 58) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 1200); ctx.stroke(); }
@@ -960,6 +1269,7 @@
     ctx.setTransform(scale, 0, 0, scale, ox, oy);
     const effects = visualEffects(frame, room);
     for (const effect of effects) drawEffect(ctx, effect, room, frame);
+    drawPowerups(ctx, room);
     const alpha = frame?.alpha ?? 1;
     drawProjectiles(ctx, room, frame, alpha);
     const oldEnemies = frame?.before?.enemies;
@@ -967,6 +1277,7 @@
       const old = oldEnemies?.get(enemy.id);
       const x = old ? old.x + (enemy.x - old.x) * alpha : enemy.x;
       const y = old ? old.y + (enemy.y - old.y) * alpha : enemy.y;
+      drawEnemyTelegraph(ctx, enemy, x, y, room, frame);
       drawSlime(ctx, enemy, x, y);
     }
     const oldPlayers = frame?.before?.players;
@@ -1139,18 +1450,24 @@
     return sprite;
   }
   function warmSlimeSprites() {
-    const sprites = [
-      ['blue',17,'#4ca4ee'], ['green',19,'#7fd05e'], ['red',22,'#f06c4c'],
-      ['yellow',17,'#f5d452'], ['black',25,'#9683bb'], ['king',48,'#e04c63']
-    ];
+    const sprites = [['king',48,'#e04c63']];
     for (const [type,radius,color] of sprites) slimeSprite(type,radius,color);
   }
   function drawSlime(ctx, e, x = e.x, y = e.y) {
     const r = e.size || 18;
-    const sprite = slimeSprite(e.type, r, e.color);
+    if(e.type==='king' && e.attackCharge?.kind==='king-jump') {
+      ctx.save();ctx.fillStyle='rgba(0,0,0,.4)';ctx.beginPath();ctx.ellipse(x,y,65,40,0,0,Math.PI*2);ctx.fill();ctx.restore();return;
+    }
+    const pixelArt = SLIME_PIXEL_ART[e.type];
+    const hasPixelArt = Boolean(pixelArt?.complete && pixelArt.naturalWidth > 0);
+    const sprite = hasPixelArt ? null : slimeSprite(e.type, r, e.color);
+    const drawSize = hasPixelArt ? r * 2 + 20 : sprite.size;
     ctx.save(); ctx.translate(x, y);
     ctx.globalAlpha = e.stunnedUntil > Date.now() ? .65 : 1;
-    ctx.drawImage(sprite.canvas, -sprite.size / 2, -sprite.size / 2, sprite.size, sprite.size);
+    if (hasPixelArt) {
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(pixelArt, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
+    } else ctx.drawImage(sprite.canvas, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
     const markRemaining = (e.markedUntil || 0) - Date.now();
     if (markRemaining > 0) {
       const markDuration = Math.max(1, e.markDurationMs || 3500);
@@ -1160,10 +1477,11 @@
       ctx.lineWidth=1.25; ctx.strokeStyle='rgba(24,21,25,.92)'; ctx.strokeText('☠',0,-r-24); ctx.fillText('☠',0,-r-24); ctx.restore();
     }
     if (e.hp < e.maxHp || e.type === 'king') {
-      const bw = r*2.2; ctx.fillStyle='rgba(13,12,15,.8)'; ctx.fillRect(-bw/2,-r-11,bw,4);
-      ctx.fillStyle=e.type==='king'?'#f1c86c':'#84d373'; ctx.fillRect(-bw/2,-r-11,bw*Math.max(0,e.hp/e.maxHp),4);
+      const bw = e.type==='king'?190:r*2.2; ctx.fillStyle='rgba(13,12,15,.8)'; ctx.fillRect(-bw/2,-r-11,bw,e.type==='king'?9:4);
+      ctx.fillStyle=e.type==='king'?'#f1c86c':'#84d373'; ctx.fillRect(-bw/2,-r-11,bw*Math.max(0,e.hp/e.maxHp),e.type==='king'?9:4);
     }
-    if (e.type==='king') { ctx.fillStyle='#f0d16f'; ctx.font='bold 15px Georgia'; ctx.textAlign='center'; ctx.fillText('♛',0,-r-14); }
+    if(e.hp<e.maxHp||e.type==='king'){ctx.strokeStyle='#e7c573';ctx.lineWidth=1;const width=e.type==='king'?190:r*2.2;ctx.strokeRect(-width/2-1,-r-12,width+2,e.type==='king'?11:6);}
+
     ctx.restore();
   }
   function visualEnemyPosition(enemy, frame) {
@@ -1183,6 +1501,118 @@
       return { x: previous.x + (current.x - previous.x) * alpha, y: previous.y + (current.y - previous.y) * alpha };
     }
     return { x: player.x, y: player.y };
+  }
+  function drawPowerups(ctx, room) {
+    for (const powerup of room?.game?.powerups || []) {
+      const image = POWERUP_ART[powerup.type];
+      const label = POWERUP_LABELS[powerup.type] || 'POWER UP';
+      const bob = Math.sin(performance.now() / 250 + Number(powerup.id || 0)) * 1.2;
+      ctx.save(); ctx.translate(powerup.x, powerup.y);
+      ctx.fillStyle = 'rgba(9,9,12,.46)'; ctx.beginPath(); ctx.ellipse(0, 8, 16, 6, 0, 0, Math.PI * 2); ctx.fill();
+      if (image?.complete && image.naturalWidth > 0) {
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(image, -13, -20 + bob, 26, 29);
+      } else {
+        ctx.fillStyle = '#e4dfce'; ctx.strokeStyle = '#211e22'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.roundRect(-8, -11 + bob, 16, 21, 5); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#6db957'; ctx.fillRect(-6, 1 + bob, 12, 6);
+      }
+      ctx.fillStyle = 'rgba(15,13,17,.86)'; ctx.strokeStyle = 'rgba(222,194,142,.65)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.roundRect(-25, 11, 50, 11, 3); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#f6e6c6'; ctx.font = '700 7px Inter,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(label, 0, 16.5);
+      ctx.restore();
+    }
+  }
+  function drawWarningCircle(ctx, x, y, radius, progress) {
+    const intensity = 0.15 + Math.max(0, Math.min(1, progress)) * 0.78;
+    ctx.save(); ctx.globalAlpha = intensity;
+    ctx.fillStyle = '#dd413b'; ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = Math.min(1, intensity + 0.08); ctx.strokeStyle = '#f05249'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha = intensity * 0.62; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(x, y, radius * 0.84, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
+  function drawWarningPath(ctx, x1, y1, x2, y2, progress, width = 3) {
+    const intensity = 0.15 + Math.max(0, Math.min(1, progress)) * 0.78;
+    ctx.save(); ctx.globalAlpha = intensity; ctx.strokeStyle = '#ed4842'; ctx.lineWidth = width;
+    ctx.setLineDash([8, 6]); ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+    ctx.setLineDash([]); ctx.fillStyle = '#f45c52'; ctx.beginPath(); ctx.arc(x2, y2, 4 + intensity * 2, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  function drawDashLightning(ctx, x1, y1, x2, y2, seed, progress) {
+    const dx = x2 - x1, dy = y2 - y1, distance = Math.max(1, Math.hypot(dx, dy));
+    const nx = -dy / distance, ny = dx / distance;
+    ctx.save(); ctx.lineCap = 'square'; ctx.globalAlpha = 0.86;
+    for (let bolt = 0; bolt < 2; bolt++) {
+      const points = [[x1, y1]];
+      for (let i = 1; i < 8; i++) {
+        const u = i / 8;
+        const jitter = (effectRandom(seed, i, Math.floor(progress * 15) + bolt * 9) - 0.5) * 24;
+        points.push([x1 + dx * u + nx * jitter, y1 + dy * u + ny * jitter]);
+      }
+      points.push([x2, y2]);
+      ctx.strokeStyle = '#302b25'; ctx.lineWidth = bolt ? 4 : 5; ctx.beginPath();
+      ctx.moveTo(...points[0]); for (const point of points.slice(1)) ctx.lineTo(...point); ctx.stroke();
+      ctx.strokeStyle = bolt ? '#f6dc79' : '#fff0a3'; ctx.lineWidth = bolt ? 1.7 : 2.2; ctx.beginPath();
+      ctx.moveTo(...points[0]); for (const point of points.slice(1)) ctx.lineTo(...point); ctx.stroke();
+      const mid = points[3 + bolt];
+      ctx.strokeStyle = '#e6c85d'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(mid[0], mid[1]);
+      ctx.lineTo(mid[0] + nx * 9, mid[1] + ny * 9); ctx.lineTo(mid[0] + nx * 13 - dx / distance * 4, mid[1] + ny * 13 - dy / distance * 4); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  function drawEnemyTelegraph(ctx, enemy, x, y, room, frame) {
+    const charge = enemy.attackCharge;
+    if (!charge) return;
+    const progress = Math.max(0, Math.min(1, charge.progress || 0));
+    const player = room?.players?.find(item => item.id === charge.targetPlayerId);
+    const targetPoint = player ? visualPlayerPosition(player, frame) : { x: charge.targetX ?? x, y: charge.targetY ?? y };
+    if(charge.kind.startsWith('king-')) {
+      const jump=charge.kind==='king-jump';
+      drawWarningCircle(ctx,jump?charge.targetX:x,jump?charge.targetY:y,charge.radius,progress);
+      if(charge.kind==='king-spin'){ctx.save();ctx.strokeStyle='#badfff';ctx.lineWidth=4;for(let i=0;i<5;i++){ctx.beginPath();ctx.arc(x,y,70+i*12,progress*16+i,progress*16+i+1.8);ctx.stroke();}ctx.restore();}
+    } else if (charge.kind === 'red-fuse') {
+      drawWarningCircle(ctx, x, y, 105, progress);
+    } else if (charge.kind === 'blue-strike') {
+      drawWarningCircle(ctx, targetPoint.x, targetPoint.y, 26, progress);
+    } else if (charge.kind === 'green-shot') {
+      drawWarningPath(ctx, x, y, targetPoint.x, targetPoint.y, progress, 2.5);
+    } else if (charge.kind === 'yellow-dash') {
+      const endX = charge.phase === 'dash' ? charge.toX : targetPoint.x;
+      const endY = charge.phase === 'dash' ? charge.toY : targetPoint.y;
+      drawWarningPath(ctx, charge.phase === 'dash' ? charge.fromX : x, charge.phase === 'dash' ? charge.fromY : y, endX, endY, charge.phase === 'dash' ? 1 : progress, 3.5);
+      if (charge.phase === 'dash') drawDashLightning(ctx, charge.fromX, charge.fromY, x, y, enemy.id, progress);
+      else {
+        const flicker = performance.now() / 55;
+        for (let i = 0; i < 3; i++) {
+          const angle = flicker + i * Math.PI * 2 / 3;
+          const sx = x + Math.cos(angle) * (enemy.size + 3), sy = y + Math.sin(angle) * (enemy.size + 3);
+          ctx.save(); ctx.globalAlpha = 0.36 + progress * 0.48; ctx.strokeStyle = '#f4de83'; ctx.lineWidth = 1.7;
+          ctx.beginPath(); ctx.moveTo(sx - 4, sy - 3); ctx.lineTo(sx, sy); ctx.lineTo(sx - 2, sy + 5); ctx.stroke(); ctx.restore();
+        }
+      }
+    } else if (charge.kind === 'black-rain') {
+      const endX = charge.targetX, endY = charge.targetY;
+      drawWarningCircle(ctx, endX, endY, 58, progress);
+      ctx.save();
+      for (let drop = 0; drop < 6; drop++) {
+        const delay = drop * 0.075;
+        if (progress < delay) continue;
+        const p = Math.max(0, Math.min(1, (progress - delay) / (1 - delay)));
+        const arcX = charge.originX + (endX - charge.originX) * p;
+        const arcY = charge.originY + (endY - charge.originY) * p - Math.sin(p * Math.PI) * (48 + drop % 3 * 5);
+        const shadowX = charge.originX + (endX - charge.originX) * p;
+        const shadowY = charge.originY + (endY - charge.originY) * p;
+        const scale = 0.72 + (drop % 3) * 0.15;
+        ctx.globalAlpha = 0.25; ctx.fillStyle = '#19171f'; ctx.beginPath(); ctx.ellipse(shadowX, shadowY, 6 * scale, 3.5 * scale, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 0.72 + (drop % 2) * 0.2; ctx.fillStyle = '#584d68'; ctx.strokeStyle = '#211e29'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.ellipse(arcX, arcY, (7 + Math.sin(p * Math.PI) * 3) * scale, (6 + Math.sin(p * Math.PI) * 2) * scale, 0.2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#b09cc4'; ctx.fillRect(arcX - 2 * scale, arcY - 3 * scale, 3 * scale, 2 * scale);
+      }
+      ctx.restore();
+    }
   }
   function ravelaBowAimAngle(player, x, y, room, frame) {
     const enemies = room?.game?.enemies || [];
@@ -1225,12 +1655,73 @@
     ravelaAimAngles.set(player.id, { angle, aimBlend, at: now });
     return { angle, aimBlend };
   }
+  function fjordWeaponAimAngle(player, x, y, room, frame) {
+    const enemies = room?.game?.enemies || [];
+    const range = Math.max(
+      Number(player.stats?.range) || HEROES.find(profile => profile.id === 'Fjord').stats.range,
+      Number(player.stats?.fireBreathRange) || 0
+    );
+    let target = null;
+    let closestDistance = range;
+    for (const enemy of enemies) {
+      const position = visualEnemyPosition(enemy, frame);
+      const distance = Math.hypot(position.x - x, position.y - y);
+      if (distance <= closestDistance) { target = enemy; closestDistance = distance; }
+    }
+    const targetPosition = target ? visualEnemyPosition(target, frame) : null;
+    const requestedAngle = targetPosition ? Math.atan2(targetPosition.y - y, targetPosition.x - x) : null;
+    const restAngle = Math.PI / 2;
+    const now = performance.now();
+    const previous = fjordAimAngles.get(player.id);
+    if (!previous) {
+      const angle = requestedAngle ?? restAngle;
+      fjordAimAngles.set(player.id, { angle, at: now });
+      return { angle, hasTarget: target !== null };
+    }
+    const targetAngle = requestedAngle ?? restAngle;
+    const delta = Math.atan2(Math.sin(targetAngle - previous.angle), Math.cos(targetAngle - previous.angle));
+    const elapsed = Math.max(0, Math.min(100, now - previous.at));
+    const angle = previous.angle + delta * (1 - Math.exp(-elapsed / 70));
+    fjordAimAngles.set(player.id, { angle, at: now });
+    return { angle, hasTarget: target !== null };
+  }
+  function aramSwordAimAngle(player, x, y, room, frame) {
+    const enemies = room?.game?.enemies || [];
+    const range = Number(player.stats?.range) || HEROES.find(profile => profile.id === 'Aram').stats.range;
+    let target = null;
+    let closestDistance = range;
+    for (const enemy of enemies) {
+      const position = visualEnemyPosition(enemy, frame);
+      const distance = Math.hypot(position.x - x, position.y - y);
+      if (distance <= closestDistance) { target = enemy; closestDistance = distance; }
+    }
+    const targetPosition = target ? visualEnemyPosition(target, frame) : null;
+    const requestedAngle = targetPosition ? Math.atan2(targetPosition.y - y, targetPosition.x - x) : null;
+    const restAngle = Math.PI / 2;
+    const now = performance.now();
+    const previous = aramAimAngles.get(player.id);
+    if (!previous) {
+      const angle = requestedAngle ?? restAngle;
+      aramAimAngles.set(player.id, { angle, at: now });
+      return { angle, hasTarget: target !== null };
+    }
+    const targetAngle = requestedAngle ?? restAngle;
+    const delta = Math.atan2(Math.sin(targetAngle - previous.angle), Math.cos(targetAngle - previous.angle));
+    const elapsed = Math.max(0, Math.min(100, now - previous.at));
+    const angle = previous.angle + delta * (1 - Math.exp(-elapsed / 70));
+    aramAimAngles.set(player.id, { angle, at: now });
+    return { angle, hasTarget: target !== null };
+  }
   function drawHero(ctx, p, x = p.x, y = p.y, room = currentRoom, frame = null) {
     const h = hero(p.hero);
     ctx.save(); ctx.translate(x,y);
     if (!p.alive) { ctx.globalAlpha=.42; }
     const ravelaSprite = p.hero === 'Ravela' && RAVELA_GAME_ART.sprite.complete && RAVELA_GAME_ART.sprite.naturalWidth > 0;
-    ctx.fillStyle='rgba(12,12,15,.5)'; ctx.beginPath(); ctx.ellipse(1,5,ravelaSprite?23.75:19,ravelaSprite?12.5:10,0,0,Math.PI*2); ctx.fill();
+    const fjordSprite = p.hero === 'Fjord' && FJORD_GAME_ART.sprite.complete && FJORD_GAME_ART.sprite.naturalWidth > 0;
+    const aramSprite = p.hero === 'Aram' && ARAM_GAME_ART.sprite.complete && ARAM_GAME_ART.sprite.naturalWidth > 0;
+    const gavriltaSprite = p.hero === 'Gavrilta' && GAVRILTA_GAME_ART.sprite.complete && GAVRILTA_GAME_ART.sprite.naturalWidth > 0;
+    const pixelSprite = ravelaSprite || fjordSprite || aramSprite || gavriltaSprite;
+    ctx.fillStyle='rgba(12,12,15,.5)'; ctx.beginPath(); ctx.ellipse(1,5,pixelSprite?23.75:19,pixelSprite?12.5:10,0,0,Math.PI*2); ctx.fill();
     if (ravelaSprite) {
       ctx.save(); ctx.imageSmoothingEnabled = false;
       ctx.drawImage(RAVELA_GAME_ART.sprite, -27.5, -30, 55, 60);
@@ -1245,15 +1736,214 @@
         ctx.drawImage(bow, -bowWidth * (7 / 24), -bowHeight * (21 / 44), bowWidth, bowHeight);
         ctx.restore();
       }
+    } else if (fjordSprite) {
+      const aim = fjordWeaponAimAngle(p, x, y, room, frame);
+      const aimAngle = aim.angle;
+      const shield = FJORD_GAME_ART.shield;
+      ctx.save(); ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(FJORD_GAME_ART.sprite, -29.5, -30, 59, 60);
+      ctx.restore();
+      if (shield.complete && shield.naturalWidth > 0) {
+        const shieldOrbitAngle = aim.hasTarget ? aimAngle - 0.58 : Math.atan2(8, 28);
+        const shieldRadius = aim.hasTarget ? 28 : Math.hypot(28, 8);
+        ctx.save(); ctx.translate(Math.cos(shieldOrbitAngle) * shieldRadius, Math.sin(shieldOrbitAngle) * shieldRadius);
+        ctx.rotate(aim.hasTarget ? shieldOrbitAngle + Math.PI / 2 : -0.18); ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(shield, -17, -21, 34, 42);
+        ctx.restore();
+      }
+      const swinging = (room?.game?.effects || []).some(effect => effect.kind === 'mace-sweep' && effect.sourcePlayerId === p.id);
+      const mace = FJORD_GAME_ART.mace;
+      if (!swinging && mace.complete && mace.naturalWidth > 0) {
+        ctx.save();
+        const handRadius = 13;
+        ctx.translate(Math.cos(aimAngle + 0.3) * handRadius, Math.sin(aimAngle + 0.3) * handRadius);
+        ctx.rotate(aimAngle); ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(mace, -6, -10, 38, 23);
+        ctx.restore();
+      }
+    } else if (aramSprite) {
+      const aim = aramSwordAimAngle(p, x, y, room, frame);
+      ctx.save(); ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(ARAM_GAME_ART.sprite, -27.5, -30, 55, 60);
+      ctx.restore();
+      const swinging = (room?.game?.effects || []).some(effect => effect.kind === 'sword-sweep' && effect.sourcePlayerId === p.id);
+      const sword = ARAM_GAME_ART.sword;
+      if (!swinging && sword.complete && sword.naturalWidth > 0) {
+        if (aim.hasTarget) {
+          const orbitAngle = aim.angle + 0.3;
+          ctx.save(); ctx.translate(Math.cos(orbitAngle) * 17, Math.sin(orbitAngle) * 17);
+          ctx.rotate(aim.angle);
+        } else {
+          ctx.save(); ctx.translate(16, 8);
+          ctx.rotate(Math.PI / 2 - 0.38);
+        }
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(sword, -6, -8, 38, 16);
+        ctx.restore();
+      }
+    } else if (gavriltaSprite) {
+      ctx.save(); ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(GAVRILTA_GAME_ART.sprite, -27.5, -30, 55, 60);
+      ctx.restore();
+      const staff = GAVRILTA_GAME_ART.staff;
+      if (staff.complete && staff.naturalWidth > 0) {
+        const raising = (room?.game?.effects || []).some(effect => effect.sourcePlayerId === p.id && ['staff-cast', 'thorn-burst', 'overgrowth-vines'].includes(effect.kind));
+        ctx.save();
+        ctx.translate(15, raising ? 1 : 6);
+        ctx.rotate(raising ? -0.39 : -0.23);
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(staff, -8, -25, 18, 50);
+        ctx.restore();
+      }
     } else {
       ctx.fillStyle=h.color; ctx.beginPath(); ctx.arc(0,0,15,0,Math.PI*2); ctx.fill();
       ctx.strokeStyle=h.starColor; ctx.lineWidth=1.5; ctx.stroke();
       ctx.fillStyle='#211c20'; ctx.font='700 12px Inter, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(p.hero.slice(0,1),0,1);
     }
-    if (p.marked) { ctx.strokeStyle='#f0bc58'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(0,0,ravelaSprite?31:21,0,Math.PI*2); ctx.stroke(); }
-    ctx.fillStyle='#fff1d7'; ctx.font='600 11px Inter,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(p.name.slice(0,12),0,ravelaSprite?-36:-25);
-    const w=34; const healthY=ravelaSprite?32:20; ctx.fillStyle='rgba(15,13,14,.75)'; ctx.fillRect(-w/2,healthY,w,4); ctx.fillStyle=p.hp/p.maxHp>.33?'#83cb77':'#ef7260'; ctx.fillRect(-w/2,healthY,w*Math.max(0,p.hp/p.maxHp),4);
-    if (!p.alive) { ctx.fillStyle='#fff'; ctx.font='700 9px Inter'; ctx.fillText('DOWN',0,ravelaSprite?49:34); }
+    if (p.marked) { ctx.strokeStyle='#f0bc58'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(0,0,pixelSprite?31:21,0,Math.PI*2); ctx.stroke(); }
+    ctx.fillStyle='#fff1d7'; ctx.font='600 11px Inter,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(p.name.slice(0,12),0,pixelSprite?-36:-25);
+    const w=34; const healthY=pixelSprite?32:20; ctx.fillStyle='rgba(15,13,14,.75)'; ctx.fillRect(-w/2,healthY,w,4); ctx.fillStyle=p.hp/p.maxHp>.33?'#83cb77':'#ef7260'; ctx.fillRect(-w/2,healthY,w*Math.max(0,p.hp/p.maxHp),4); ctx.strokeStyle='#e7c573';ctx.lineWidth=1;ctx.strokeRect(-w/2-1,healthY-1,w+2,6);
+    if (!p.alive) { ctx.fillStyle='#fff'; ctx.font='700 9px Inter'; ctx.fillText('DOWN',0,pixelSprite?49:34); }
+    ctx.restore();
+  }
+  function drawBreathFlame(ctx, x, y, angle, length, width, alpha) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(angle); ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#a82a20';
+    ctx.beginPath();
+    ctx.moveTo(-length * 0.65, -width * 0.28);
+    ctx.quadraticCurveTo(-length * 0.28, -width * 0.95, length * 0.03, -width * 0.38);
+    ctx.quadraticCurveTo(length * 0.48, -width * 0.28, length, 0);
+    ctx.quadraticCurveTo(length * 0.45, width * 0.34, length * 0.02, width * 0.4);
+    ctx.quadraticCurveTo(-length * 0.32, width * 0.86, -length * 0.65, width * 0.28);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#f05a22';
+    ctx.beginPath();
+    ctx.moveTo(-length * 0.48, -width * 0.2);
+    ctx.quadraticCurveTo(-length * 0.04, -width * 0.55, length * 0.62, 0);
+    ctx.quadraticCurveTo(-length * 0.02, width * 0.48, -length * 0.48, width * 0.2);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#ffad36';
+    ctx.beginPath();
+    ctx.moveTo(-length * 0.32, -width * 0.12);
+    ctx.quadraticCurveTo(-length * 0.01, -width * 0.37, length * 0.38, 0);
+    ctx.quadraticCurveTo(-length * 0.01, width * 0.31, -length * 0.32, width * 0.12);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#ffe79a';
+    ctx.beginPath();
+    ctx.moveTo(-length * 0.2, -width * 0.08);
+    ctx.quadraticCurveTo(length * 0.03, -width * 0.19, length * 0.2, 0);
+    ctx.quadraticCurveTo(length * 0.02, width * 0.16, -length * 0.2, width * 0.08);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+  function effectRandom(seed, index, channel = 0) {
+    const value = Math.sin((seed + 1) * 12.9898 + (index + 1) * 78.233 + channel * 37.719) * 43758.5453;
+    return value - Math.floor(value);
+  }
+  function drawThornBurst(ctx, effect, room, frame, t, maxLife) {
+    const target = room?.game?.enemies?.find(enemy => enemy.id === effect.targetEnemyId);
+    const point = target ? visualEnemyPosition(target, frame) : { x: effect.x, y: effect.y };
+    const age = maxLife * (1 - t);
+    const growth = Math.max(0, Math.min(1, age / 0.24));
+    const fade = Math.min(1, t * 3.2);
+    const radius = Math.max(18, effect.radius || 70);
+    const seed = Number(effect.id) || 0;
+    ctx.save(); ctx.translate(point.x, point.y); ctx.globalAlpha = fade;
+    ctx.fillStyle = 'rgba(69,92,44,.12)'; ctx.beginPath(); ctx.arc(0, 0, radius * (0.55 + growth * 0.45), 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(39,48,31,.8)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, radius * (0.42 + growth * 0.52), 0, Math.PI * 2); ctx.stroke();
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 18; i++) {
+      const angle = (i / 18) * Math.PI * 2 + (effectRandom(seed, i, 0) - 0.5) * 0.16;
+      const startRadius = radius * (0.23 + effectRandom(seed, i, 1) * 0.3);
+      const length = (12 + effectRandom(seed, i, 2) * 18) * growth;
+      const bx = Math.cos(angle) * startRadius, by = Math.sin(angle) * startRadius;
+      const tx = Math.cos(angle) * (startRadius + length), ty = Math.sin(angle) * (startRadius + length);
+      ctx.globalAlpha = fade * (0.72 + effectRandom(seed, i, 3) * 0.25);
+      ctx.strokeStyle = '#282a22'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(tx, ty); ctx.stroke();
+      ctx.strokeStyle = i % 3 === 0 ? '#b2c66b' : '#76964b'; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(tx, ty); ctx.stroke();
+      for (let thorn = 0; thorn < 2; thorn++) {
+        const along = 0.42 + thorn * 0.25;
+        const sx = bx + (tx - bx) * along, sy = by + (ty - by) * along;
+        const side = thorn % 2 === 0 ? 1 : -1;
+        const branch = 4 + effectRandom(seed, i, thorn + 4) * 4;
+        const ex = sx + Math.cos(angle + side * 0.92) * branch * growth;
+        const ey = sy + Math.sin(angle + side * 0.92) * branch * growth;
+        ctx.strokeStyle = '#303126'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+        ctx.strokeStyle = '#9bb85c'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+  function drawOvergrowthWave(ctx, effect, t, maxLife) {
+    const age = maxLife * (1 - t);
+    const travel = Number(effect.travelDuration) || 0.52;
+    const progress = Math.max(0, Math.min(1, age / travel));
+    const fade = age <= travel ? 0.76 : Math.max(0, 0.76 * (1 - (age - travel) / Math.max(0.01, maxLife - travel)));
+    const radius = Math.max(0, effect.radius || 0) * progress;
+    if (radius < 1 || fade <= 0) return;
+    ctx.save();
+    ctx.globalAlpha = fade * 0.18;
+    ctx.fillStyle = '#75994a';
+    ctx.beginPath(); ctx.arc(effect.x, effect.y, radius, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = fade * 0.72;
+    ctx.strokeStyle = '#273022'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(effect.x, effect.y, radius, 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha = fade;
+    ctx.strokeStyle = '#a9c96b'; ctx.lineWidth = 2.4;
+    ctx.beginPath(); ctx.arc(effect.x, effect.y, radius, 0, Math.PI * 2); ctx.stroke();
+    // A faint trailing edge makes the wave read as a moving front alongside the vines.
+    if (progress > 0.09) {
+      ctx.globalAlpha = fade * 0.22; ctx.strokeStyle = '#7d9f50'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(effect.x, effect.y, radius * 0.91, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  function drawOvergrowthVines(ctx, effect, room, frame, t, maxLife) {
+    const source = room?.players?.find(player => player.id === effect.sourcePlayerId);
+    const target = room?.game?.enemies?.find(enemy => enemy.id === effect.targetEnemyId);
+    const from = Number.isFinite(effect.originX) && Number.isFinite(effect.originY)
+      ? { x: effect.originX, y: effect.originY }
+      : source ? visualPlayerPosition(source, frame) : { x: effect.x, y: effect.y };
+    const to = target ? visualEnemyPosition(target, frame) : { x: effect.x, y: effect.y };
+    const dx = to.x - from.x, dy = to.y - from.y, distance = Math.max(1, Math.hypot(dx, dy));
+    const nx = -dy / distance, ny = dx / distance;
+    const age = maxLife * (1 - t), travel = Number(effect.travelDuration) || 0.52;
+    const progress = Math.max(0, Math.min(1, age / travel));
+    const seed = Number(effect.id) || 0;
+    const pointAt = u => ({
+      x: from.x + dx * u + nx * Math.sin(u * Math.PI * 5 + seed * 0.4 + age * 5) * Math.sin(u * Math.PI) * 7,
+      y: from.y + dy * u + ny * Math.sin(u * Math.PI * 5 + seed * 0.4 + age * 5) * Math.sin(u * Math.PI) * 7
+    });
+    if (progress > 0) {
+      const steps = Math.max(2, Math.ceil(18 * progress));
+      ctx.save(); ctx.lineCap = 'round';
+      for (let i = 0; i < steps; i++) {
+        const a = (i / steps) * progress, b = ((i + 1) / steps) * progress;
+        const pa = pointAt(a), pb = pointAt(b);
+        const underground = (i + Math.floor(seed)) % 4 === 0;
+        ctx.globalAlpha = t * (underground ? 0.4 : 0.85);
+        ctx.strokeStyle = '#25271e'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y); ctx.stroke();
+        ctx.strokeStyle = underground ? '#586c3b' : '#80a94b'; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y); ctx.stroke();
+        if (i > 0 && i % 3 === 0 && !underground) {
+          const thornX = (pa.x + pb.x) / 2, thornY = (pa.y + pb.y) / 2;
+          ctx.strokeStyle = '#313126'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(thornX, thornY); ctx.lineTo(thornX + nx * 5, thornY + ny * 5 - 2); ctx.stroke();
+          ctx.strokeStyle = '#a5bf65'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(thornX, thornY); ctx.lineTo(thornX + nx * 5, thornY + ny * 5 - 2); ctx.stroke();
+        }
+      }
+      ctx.restore();
+    }
+    const wrap = Math.max(0, Math.min(1, (age - travel) / 0.14));
+    if (!wrap) return;
+    const size = target?.size || Math.max(16, effect.radius - 22);
+    ctx.save(); ctx.translate(to.x, to.y + size * 0.28); ctx.globalAlpha = t * wrap; ctx.lineCap = 'round';
+    for (let loop = 0; loop < 3; loop++) {
+      const rx = size * (0.48 + loop * 0.12), ry = size * (0.23 + loop * 0.035);
+      const start = -0.55 + loop * 1.95 + seed * 0.11;
+      ctx.strokeStyle = '#25271e'; ctx.lineWidth = 5 - loop * 0.5; ctx.beginPath(); ctx.ellipse(0, 0, rx, ry, -0.12 + loop * 0.1, start, start + Math.PI * 1.58); ctx.stroke();
+      ctx.strokeStyle = loop === 1 ? '#a6c668' : '#6f9744'; ctx.lineWidth = 2.2; ctx.beginPath(); ctx.ellipse(0, 0, rx, ry, -0.12 + loop * 0.1, start, start + Math.PI * 1.58); ctx.stroke();
+    }
+    ctx.strokeStyle = '#2b2b20'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(-size * 0.3, -size * 0.12); ctx.quadraticCurveTo(0, size * 0.2, size * 0.32, -size * 0.08); ctx.stroke();
+    ctx.strokeStyle = '#a3c263'; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.moveTo(-size * 0.3, -size * 0.12); ctx.quadraticCurveTo(0, size * 0.2, size * 0.32, -size * 0.08); ctx.stroke();
     ctx.restore();
   }
   function drawEffect(ctx, effect, room = currentRoom, frame = null) {
@@ -1263,7 +1953,36 @@
     const t = Math.max(0,Math.min(1,life/maxLife));
     ctx.save(); ctx.globalAlpha=t; ctx.strokeStyle=effect.color; ctx.fillStyle=effect.color;
     const radius=Math.max(0,effectRadius*(1.25-t*.25));
-    if (effect.kind==='critical') {
+    if ((effect.kind==='bow-shot'||effect.kind==='enemy-audio')) {
+      // Audio-only shot event.
+    } else if (effect.kind==='damage-number') {
+      ctx.font=effect.critical?'bold 19px Georgia':'bold 15px Georgia';ctx.textAlign='center';ctx.lineWidth=3;ctx.strokeStyle='#16131d';
+      const y=effect.y-14-(1-t)*38;ctx.strokeText(effect.text,effect.x,y);ctx.fillText(effect.text,effect.x,y);
+    } else if (effect.kind==='overgrowth-wave') {
+      drawOvergrowthWave(ctx, effect, t, maxLife);
+    } else if (effect.kind==='staff-cast') {
+      // This short-lived cue raises Gavrilta's staff without adding a second floor effect.
+    } else if (effect.kind==='thorn-burst') {
+      drawThornBurst(ctx, effect, room, frame, t, maxLife);
+    } else if (effect.kind==='overgrowth-vines') {
+      drawOvergrowthVines(ctx, effect, room, frame, t, maxLife);
+    } else if (effect.kind==='powerup-pickup') {
+      ctx.globalAlpha = t; ctx.fillStyle = '#fff0c5'; ctx.strokeStyle = '#211d20'; ctx.lineWidth = 2;
+      ctx.font = '700 12px Inter,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const label = effect.text || 'POWER UP';
+      ctx.strokeText(label, effect.x, effect.y - 12 - (1 - t) * 18); ctx.fillText(label, effect.x, effect.y - 12 - (1 - t) * 18);
+    } else if (effect.kind==='red-detonation' || effect.kind==='black-rain-impact' || effect.kind==='blue-strike-hit' || effect.kind==='yellow-dash-impact') {
+      const progress = 1 - t;
+      ctx.globalAlpha = t * 0.72; ctx.strokeStyle = effect.color; ctx.lineWidth = 4 * t;
+      ctx.beginPath(); ctx.arc(effect.x, effect.y, Math.max(8, effectRadius * progress), 0, Math.PI * 2); ctx.stroke();
+      if (effect.kind === 'black-rain-impact') {
+        ctx.globalAlpha = t * 0.28; ctx.fillStyle = '#6c5b7d'; ctx.beginPath(); ctx.arc(effect.x, effect.y, effectRadius * progress * 0.7, 0, Math.PI * 2); ctx.fill();
+        for (let i = 0; i < 9; i++) {
+          const a = i * Math.PI * 2 / 9, d = effectRadius * progress * (0.45 + effectRandom(effect.id, i, 2) * 0.35);
+          ctx.fillStyle = '#9181a5'; ctx.beginPath(); ctx.arc(effect.x + Math.cos(a) * d, effect.y + Math.sin(a) * d, 3 + (i % 2), 0, Math.PI * 2); ctx.fill();
+        }
+      }
+    } else if (effect.kind==='critical') {
       ctx.globalAlpha=t; ctx.fillStyle=effect.color; ctx.shadowColor=effect.color; ctx.shadowBlur=10;
       ctx.font='700 12px Inter,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
       ctx.fillText('CRITICAL!',effect.x,effect.y-16-(1-t)*18);
@@ -1272,9 +1991,214 @@
       ctx.globalAlpha=t*.9; ctx.lineWidth=4; ctx.beginPath(); ctx.arc(effect.x,effect.y,radius,0,Math.PI*2); ctx.stroke();
       ctx.globalAlpha=t; ctx.font='700 16px Georgia,serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
       ctx.fillText('✦',effect.x,effect.y);
+    } else if (effect.kind==='mace-sweep') {
+      const source = effect.sourcePlayerId
+        ? room?.players?.find(player => player.id === effect.sourcePlayerId)
+        : room?.players?.filter(player => player.hero === 'Fjord')
+          .sort((a, b) => Math.hypot(a.x - effect.x, a.y - effect.y) - Math.hypot(b.x - effect.x, b.y - effect.y))[0];
+      const sourcePosition = source ? visualPlayerPosition(source, frame) : null;
+      const originX = sourcePosition?.x ?? effect.x;
+      const originY = sourcePosition?.y ?? effect.y;
+      const centerAngle = Number.isFinite(effect.angle) ? effect.angle : -Math.PI / 2;
+      const halfAngle = Number.isFinite(effect.coneAngle) ? effect.coneAngle / 2 : Math.PI / 3;
+      const progress = 1 - t;
+      const startAngle = centerAngle - halfAngle;
+      const sweepAngle = startAngle + progress * halfAngle * 2;
+      const swingRadius = Math.min(72, Math.max(36, effectRadius * 0.76));
+      const totalSweep = halfAngle * 2;
+      const angularSpeed = totalSweep / maxLife;
+      const trailDuration = 0.12;
+      const trailStart = Math.max(startAngle, sweepAngle - angularSpeed * trailDuration);
+      const trailSegments = 8;
+      ctx.lineCap = 'round';
+      for (let i = 0; i < trailSegments; i++) {
+        const segmentStart = trailStart + (sweepAngle - trailStart) * i / trailSegments;
+        const segmentEnd = trailStart + (sweepAngle - trailStart) * (i + 1) / trailSegments;
+        const segmentAge = Math.max(0, (sweepAngle - (segmentStart + segmentEnd) / 2) / angularSpeed);
+        const fade = Math.max(0, 1 - segmentAge / trailDuration);
+        if (!fade) continue;
+        ctx.globalAlpha = 0.48 * fade;
+        ctx.strokeStyle = '#d99a54'; ctx.lineWidth = 8 * fade;
+        ctx.beginPath(); ctx.arc(originX, originY, swingRadius, segmentStart, segmentEnd); ctx.stroke();
+      }
+      const mace = FJORD_GAME_ART.mace;
+      if (mace.complete && mace.naturalWidth > 0) {
+        ctx.save();
+        ctx.translate(originX + Math.cos(sweepAngle) * swingRadius, originY + Math.sin(sweepAngle) * swingRadius);
+        ctx.rotate(sweepAngle); ctx.imageSmoothingEnabled = false; ctx.globalAlpha = 0.92;
+        ctx.drawImage(mace, -34, -13, 44, 27);
+        ctx.restore();
+      }
+    } else if (effect.kind==='sword-sweep') {
+      const source = room?.players?.find(player => player.id === effect.sourcePlayerId);
+      const sourcePosition = source ? visualPlayerPosition(source, frame) : null;
+      const originX = sourcePosition?.x ?? effect.x;
+      const originY = sourcePosition?.y ?? effect.y;
+      const centerAngle = Number.isFinite(effect.angle) ? effect.angle : -Math.PI / 2;
+      const progress = 1 - t;
+      const startAngle = centerAngle - 0.8;
+      const endAngle = centerAngle + 0.12;
+      const sweepAngle = startAngle + (endAngle - startAngle) * progress;
+      const swingRadius = Math.min(48, Math.max(32, effectRadius * 0.46));
+      const angularSpeed = (endAngle - startAngle) / maxLife;
+      const trailDuration = 0.1;
+      const trailStart = Math.max(startAngle, sweepAngle - angularSpeed * trailDuration);
+      ctx.lineCap = 'round'; ctx.strokeStyle = '#cbd8dc';
+      for (let i = 0; i < 7; i++) {
+        const from = trailStart + (sweepAngle - trailStart) * i / 7;
+        const to = trailStart + (sweepAngle - trailStart) * (i + 1) / 7;
+        const age = Math.max(0, (sweepAngle - (from + to) / 2) / angularSpeed);
+        const fade = Math.max(0, 1 - age / trailDuration);
+        if (!fade) continue;
+        ctx.globalAlpha = 0.48 * fade; ctx.lineWidth = 4 * fade;
+        ctx.beginPath(); ctx.arc(originX, originY, swingRadius, from, to); ctx.stroke();
+      }
+      const sword = ARAM_GAME_ART.sword;
+      if (sword.complete && sword.naturalWidth > 0) {
+        ctx.save();
+        ctx.translate(originX + Math.cos(sweepAngle) * swingRadius, originY + Math.sin(sweepAngle) * swingRadius);
+        ctx.rotate(sweepAngle); ctx.imageSmoothingEnabled = false; ctx.globalAlpha = 0.96;
+        ctx.drawImage(sword, -22, -9, 44, 18);
+        ctx.restore();
+      }
+    } else if (effect.kind==='riposte-wave') {
+      const source = room?.players?.find(player => player.id === effect.sourcePlayerId);
+      const sourcePosition = source ? visualPlayerPosition(source, frame) : null;
+      const originX = sourcePosition?.x ?? effect.x;
+      const originY = sourcePosition?.y ?? effect.y;
+      const age = maxLife * (1 - t);
+      const ringTravel = 0.68;
+      const ringDelay = 0.12;
+      const waveProgress = Math.max(0, Math.min(1, age / ringTravel));
+      for (let ring = 0; ring < 3; ring++) {
+        const ringAge = age - ring * ringDelay;
+        if (ringAge < 0) continue;
+        const progress = Math.max(0, Math.min(1, ringAge / ringTravel));
+        const afterglow = Math.max(0, 1 - Math.max(0, ringAge - ringTravel) / 0.25);
+        const ringRadius = effectRadius * progress;
+        ctx.globalAlpha = 0.62 * afterglow * (1 - ring * 0.12);
+        ctx.strokeStyle = ring === 1 ? '#d1e1e5' : '#edf3f0';
+        ctx.lineWidth = 3 - ring * 0.55;
+        ctx.beginPath(); ctx.arc(originX, originY, ringRadius, 0, Math.PI * 2); ctx.stroke();
+      }
+      const seed = Number(effect.id) || 0;
+      const sparkleCount = 24;
+      for (let i = 0; i < sparkleCount; i++) {
+        const birth = effectRandom(seed, i, 6) * 0.34;
+        if (age < birth) continue;
+        const sparkleAge = age - birth;
+        const startAngle = effectRandom(seed, i, 0) * Math.PI * 2;
+        const radial = 0.12 + effectRandom(seed, i, 1) * 0.82;
+        const direction = effectRandom(seed, i, 2) < 0.5 ? -1 : 1;
+        const angularSpeed = 0.55 + effectRandom(seed, i, 3) * 1.2;
+        const angle = startAngle + direction * sparkleAge * angularSpeed;
+        const sparkleProgress = Math.max(0, Math.min(1, sparkleAge / 0.58));
+        const distance = effectRadius * Math.min(waveProgress, 0.06 + radial * sparkleProgress);
+        const x = originX + Math.cos(angle) * distance;
+        const y = originY + Math.sin(angle) * distance;
+        const twinkle = 0.5 + 0.5 * Math.sin(sparkleAge * (24 + effectRandom(seed, i, 4) * 10) + startAngle);
+        const size = 1.1 + twinkle * 1.9;
+        const rotation = direction * sparkleAge * (1.8 + effectRandom(seed, i, 5) * 2.4);
+        ctx.save(); ctx.translate(x, y); ctx.rotate(rotation);
+        ctx.globalAlpha = (0.18 + twinkle * 0.56) * Math.max(0, 1 - age / maxLife * 0.25);
+        ctx.strokeStyle = '#f3f7ff'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(-size, 0); ctx.lineTo(size, 0); ctx.moveTo(0, -size); ctx.lineTo(0, size); ctx.stroke();
+        ctx.fillStyle = '#b8d5e5'; ctx.fillRect(-0.8, -0.8, 1.6, 1.6);
+        ctx.restore();
+      }
     } else if (effect.kind==='breath') {
-      ctx.globalAlpha=t*.2; ctx.beginPath(); ctx.arc(effect.x,effect.y,radius,0,Math.PI*2); ctx.fill();
-      ctx.globalAlpha=t*.85; ctx.lineWidth=7*t; ctx.beginPath(); ctx.arc(effect.x,effect.y,radius*.84,Math.PI*1.1,Math.PI*1.9); ctx.stroke();
+      const source = effect.sourcePlayerId
+        ? room?.players?.find(player => player.id === effect.sourcePlayerId)
+        : room?.players?.filter(player => player.hero === 'Fjord')
+          .sort((a, b) => Math.hypot(a.x - effect.x, a.y - effect.y) - Math.hypot(b.x - effect.x, b.y - effect.y))[0];
+      const sourcePosition = source ? visualPlayerPosition(source, frame) : null;
+      const originX = sourcePosition?.x ?? effect.x;
+      const originY = sourcePosition?.y ?? effect.y;
+      const angle = Number.isFinite(effect.angle) ? effect.angle : sourcePosition ? Math.atan2(effect.y - sourcePosition.y, effect.x - sourcePosition.x) : -Math.PI / 2;
+      const halfAngle = Number.isFinite(effect.coneAngle) ? effect.coneAngle / 2 : Math.acos(0.2);
+      const progress = 1 - t;
+      const reach = effectRadius * progress;
+      const age = maxLife * progress;
+      const fade = Math.min(1, t * 6);
+      const seed = Number(effect.id) || 0;
+      if (reach > 8) {
+        const fronts = 3;
+        const segments = 10;
+        const span = halfAngle * 2;
+        ctx.lineCap = 'round';
+        for (let front = 0; front < fronts; front++) {
+          const radius = reach * (1 - front * 0.075);
+          const alpha = fade * (0.28 - front * 0.065);
+          ctx.globalAlpha = alpha;
+          ctx.strokeStyle = front === 0 ? '#ffc35e' : front === 1 ? '#ff8b35' : '#ef4e25';
+          ctx.lineWidth = 7 - front * 1.5;
+          for (let segment = 0; segment < segments; segment++) {
+            const step = span / segments;
+            const jitter = Math.sin(age * 13 + segment * 2.1 + front * 1.7 + seed) * step * 0.08;
+            const start = angle - halfAngle + segment * step + jitter;
+            const end = start + step * (0.64 + 0.08 * Math.sin(segment * 4.3 + age * 9 + front));
+            ctx.beginPath(); ctx.arc(originX, originY, radius, start, end); ctx.stroke();
+          }
+        }
+      }
+      const laneCount = 28;
+      const flameCount = 112;
+      for (let i = 0; i < flameCount; i++) {
+        const laneIndex = i % laneCount;
+        const cohort = Math.floor(i / laneCount);
+        const birth = cohort * 0.23 + (laneIndex % 7) * 0.014;
+        if (age < birth) continue;
+        const phase = Math.max(0, Math.min(1, (age - birth) / 0.62));
+        const lane = (laneIndex / (laneCount - 1)) * 2 - 1;
+        const wobble = Math.sin(age * 21 + i * 2.7 + seed) * 0.055;
+        const spread = Math.max(-1, Math.min(1, lane + wobble)) * (0.28 + phase * 0.72);
+        const flameAngle = angle + spread * halfAngle;
+        const distance = effectRadius * Math.min(progress, 0.06 + phase * 0.94);
+        const x = originX + Math.cos(flameAngle) * distance;
+        const y = originY + Math.sin(flameAngle) * distance;
+        const flicker = 0.75 + 0.25 * Math.sin(age * 29 + i * 4.1 + seed * 0.4);
+        const length = (12 + 15 * phase) * flicker;
+        const width = (5 + 7 * phase) * flicker;
+        const alpha = fade * (0.28 + 0.18 * phase) * (0.68 + 0.32 * flicker);
+        drawBreathFlame(ctx, x, y, flameAngle, length, width, alpha);
+      }
+      ctx.globalAlpha = fade * 0.34;
+      ctx.fillStyle = '#ffbd58';
+      for (let i = 0; i < 24; i++) {
+        const cohort = Math.floor(i / 8);
+        const birth = cohort * 0.23 + (i % 8) * 0.016;
+        if (age < birth) continue;
+        const phase = Math.max(0, Math.min(1, (age - birth) / 0.58));
+        const spread = (Math.sin(i * 8.7 + seed) * 0.8) * halfAngle;
+        const emberAngle = angle + spread;
+        const distance = effectRadius * Math.min(progress, 0.08 + phase * 0.92);
+        const x = originX + Math.cos(emberAngle) * distance;
+        const y = originY + Math.sin(emberAngle) * distance;
+        const size = 1.5 + (i % 3) * 0.7;
+        ctx.beginPath(); ctx.arc(x, y, size, 0, Math.PI * 2); ctx.fill();
+      }
+    } else if (effect.kind==='cone') {
+      const source = effect.sourcePlayerId
+        ? room?.players?.find(player => player.id === effect.sourcePlayerId)
+        : room?.players?.filter(player => player.hero === 'Fjord')
+          .sort((a, b) => Math.hypot(a.x - effect.x, a.y - effect.y) - Math.hypot(b.x - effect.x, b.y - effect.y))[0];
+      const sourcePosition = source ? visualPlayerPosition(source, frame) : null;
+      const originX = sourcePosition?.x ?? effect.x;
+      const originY = sourcePosition?.y ?? effect.y;
+      const angle = Number.isFinite(effect.angle) ? effect.angle : sourcePosition ? Math.atan2(effect.y - sourcePosition.y, effect.x - sourcePosition.x) : -Math.PI / 2;
+      const halfAngle = Number.isFinite(effect.coneAngle) ? effect.coneAngle / 2 : Math.acos(0.2);
+      const progress = 1 - t;
+      const reach = effectRadius * progress;
+      const alpha = (0.22 + 0.62 * progress) * Math.pow(1 - progress, 0.55);
+      ctx.globalAlpha = alpha;
+      ctx.beginPath(); ctx.moveTo(originX, originY);
+      ctx.arc(originX, originY, reach, angle - halfAngle, angle + halfAngle);
+      ctx.closePath(); ctx.fill();
+      ctx.globalAlpha = alpha * 0.95; ctx.lineWidth = 2 + progress * 2;
+      ctx.beginPath(); ctx.moveTo(originX, originY);
+      ctx.lineTo(originX + Math.cos(angle - halfAngle) * reach, originY + Math.sin(angle - halfAngle) * reach);
+      ctx.arc(originX, originY, reach, angle - halfAngle, angle + halfAngle);
+      ctx.lineTo(originX, originY); ctx.stroke();
     } else if (effect.kind==='roots') {
       ctx.globalAlpha=t*.13; ctx.beginPath(); ctx.arc(effect.x,effect.y,radius,0,Math.PI*2); ctx.fill();
       ctx.globalAlpha=t*.7; ctx.lineWidth=4; for(let i=0;i<7;i++){const a=i*Math.PI*2/7;ctx.beginPath();ctx.moveTo(effect.x,effect.y);ctx.lineTo(effect.x+Math.cos(a)*radius,effect.y+Math.sin(a)*radius*.7);ctx.stroke();}
@@ -1335,7 +2259,7 @@
     const visualPlayers=visualRoom.players||currentRoom.players||[];
     const visualSelf=visualPlayers.find(player=>player.id===playerId)||self;
     const waveLabel=document.querySelector('#wave-label');
-    if(waveLabel) waveLabel.textContent=`Wave ${g.wave} / 10`;
+    if(waveLabel) waveLabel.textContent=`Wave ${g.wave}${g.endless?' · Endless':' / 10'}`;
     const runTime=formatRunTime(g.elapsedTime);
     const timer=document.querySelector('#game-timer'); if(timer) timer.textContent=runTime;
     const sidebarTime=document.querySelector('#run-time'); if(sidebarTime) sidebarTime.textContent=runTime;
@@ -1360,7 +2284,7 @@
     if(status){
       const statusMarkup=visualPlayers.map(p=>{
         const profile=hero(p.hero); const stats=p.stats||profile.stats; const buff=p.buff||{};
-        const attack=stats.damage??(stats.attack*(buff.damage||1));
+        const attack=stats.maceDamage??stats.slashDamage??stats.damage??(stats.attack*(buff.damage||1));
         const range=stats.range??profile.stats.range*(buff.range||1);
         const speed=stats.speed??profile.stats.speed*(buff.speed||1);
         const interval=stats.interval??profile.stats.interval*(buff.cooldown||1)/(buff.attackSpeed||1);
@@ -1408,26 +2332,20 @@
     if(self){
       const abilityProfile=hero(self.hero);
       const selfStats=self.stats||abilityProfile.stats;
-      const abilityName=self.abilityName||abilityProfile.ability||'Ability';
+      const abilityName=abilityProfile.ability||self.abilityName||'Ability';
       const abilityNameNode=document.querySelector('#ability-name'); if(abilityNameNode) abilityNameNode.textContent=abilityName;
       const abilityDescription=document.querySelector('#ability-description'); if(abilityDescription) abilityDescription.textContent=abilityProfile.abilityDescription||'';
       const abilityCooldown=document.querySelector('#ability-cooldown'); if(abilityCooldown) abilityCooldown.textContent=`${(selfStats.abilityCooldown??(abilityProfile.stats.abilityCooldown*(self.buff?.cooldown||1)*(self.buff?.abilityCooldown||1))).toFixed(1).replace(/\.0$/,'')}s`;
+      const abilityStats=document.querySelector('#ability-stats');
+      if(abilityStats){const markup=sidebarMetricRows(abilitySidebarMetrics(abilityProfile,selfStats));if(abilityStats.innerHTML!==markup)abilityStats.innerHTML=markup;}
       const passive=abilityProfile.passive;
       const passiveName=document.querySelector('#passive-name'); if(passiveName) passiveName.textContent=passive.name;
       const passiveDescription=document.querySelector('#passive-description'); if(passiveDescription) passiveDescription.textContent=passive.description;
-      const passiveLabel=document.querySelector('#passive-stat-label'); if(passiveLabel) passiveLabel.textContent=passive.statLabel;
-      const passiveStatValue=selfStats[passive.statKey]||0;
-      const passiveValue=document.querySelector('#passive-stat-value');
-      if(passiveValue) passiveValue.textContent=passive.format==='percent'?`${Math.round(passiveStatValue*100)}%`:passive.format==='perTick'?`${passiveStatValue}/tick`:`${passiveStatValue}`;
-      const markStats=document.querySelector('#mark-stats');
-      if(markStats){
-        markStats.hidden=self.hero!=='Ravela';
-        const range=document.querySelector('#mark-range'); if(range) range.textContent=String(Math.round(Number(selfStats.range??abilityProfile.stats.range)));
-        const duration=document.querySelector('#mark-duration'); if(duration) duration.textContent=`${Number(selfStats.markDuration||3.5).toFixed(1).replace(/\.0$/,'')}s`;
-        const bonus=document.querySelector('#mark-bonus'); if(bonus) bonus.textContent=`${Math.round((selfStats.markBonus||0.5)*100)}%`;
-      }
+      const passiveStats=document.querySelector('#passive-stats');
+      if(passiveStats){const markup=sidebarMetricRows(passiveSidebarMetrics(abilityProfile,selfStats));if(passiveStats.innerHTML!==markup)passiveStats.innerHTML=markup;}
       const chip=document.querySelector('#ability-chip');
-      if(chip){const left=Math.ceil(self.abilityCooldown);chip.textContent=left>0?`${left}s · ${abilityName}`:`E · ${abilityName}`;chip.classList.toggle('ready',left<=0&&self.alive&&!g.paused);chip.disabled=left>0||!self.alive||g.paused;}
+      const mobileCast=document.querySelector('#mobile-cast');if(mobileCast){mobileCast.disabled=!self?.alive||g.paused||self.abilityCooldown>0;mobileCast.textContent=self.abilityCooldown>0?Math.ceil(self.abilityCooldown)+'s':'Ability';}
+    if(chip){const left=Math.ceil(self.abilityCooldown);chip.textContent=left>0?`${left}s · ${abilityName}`:`E · ${abilityName}`;chip.classList.toggle('ready',left<=0&&self.alive&&!g.paused);chip.disabled=left>0||!self.alive||g.paused;}
     }
     const heroHud=document.querySelector('#hero-hud');
     const heroHpTrack=document.querySelector('#hero-hp-track');
@@ -1462,7 +2380,7 @@
       node.hidden=false;
       const romans=['I','II','III','IV','V','VI','VII','VIII','IX','X'];
       const showTitle=g.wave===1&&(g.phaseTimer||0)>1.6;
-      node.innerHTML=`<div class="wave-intro-copy">${showTitle?'<div class="wave-intro-title">SURVIVE THE SLIME</div>':`<div class="wave-intro-number">Wave ${romans[Math.max(0,Math.min(9,(g.wave||1)-1))]}</div>`}</div>`;
+      node.innerHTML=`<div class="wave-intro-copy">${showTitle?'<div class="wave-intro-title">SURVIVE THE SLIME</div>':`<div class="wave-intro-number">Wave ${(g.wave<=10?romans[g.wave-1]:g.wave)}</div>`}</div>`;
     } else if(g.phase==='upgrade') {
       node.hidden=false;
       if(self?.upgradePicked) {
@@ -1474,7 +2392,7 @@
         const timerCopy=multiplayer?`Choose before the timer ends: ${Math.max(0,Math.ceil(g.phaseTimer||0))}s`:'The run stays paused until you choose.';
         const upgradeCopy=`Choose one lasting bonus for your run. ${timerCopy}`;
         const upgradeCards=(self?.upgradeChoices||[]).map(id=>({id,card:UPGRADE_CARDS[id]})).filter(item=>item.card);
-        node.innerHTML=`<div class="overlay-card"><div class="eyebrow">Wave ${g.wave} cleared</div><h2>Choose an upgrade</h2><p class="muted small">${upgradeCopy}</p><div class="upgrade-grid">${upgradeCards.map(({id,card})=>`<button class="upgrade-card" data-upgrade="${id}"><div class="upgrade-icon">${card.icon}</div><strong>${card.name}</strong><span>${card.text}</span></button>`).join('')}</div></div>`;
+        node.innerHTML=`<div class="overlay-card"><div class="eyebrow">Wave ${g.wave} cleared</div><h2>Choose an upgrade</h2><p class="muted small">${upgradeCopy}</p><div class="upgrade-grid">${upgradeCards.map(({id,card})=>`<button class="upgrade-card" data-upgrade="${id}"><div class="upgrade-icon" style="color:${upgradeAppearance(id).color}">${upgradeAppearance(id).icon}</div><strong>${card.name}</strong><span>${card.text}</span></button>`).join('')}</div></div>`;
         node.querySelectorAll('[data-upgrade]').forEach(button=>button.addEventListener('click',async()=>{await act('upgrade',button.dataset.upgrade);sound(520,.1,'triangle');}));
       }
     } else if(g.phase==='won'||g.phase==='lost') {
@@ -1490,8 +2408,10 @@
       const resultStats=solo
         ? `<div class="results-score solo-results"><div class="result-box"><strong>${runTime}</strong><span>Time</span></div><div class="result-box"><strong>${kills}</strong><span>Slimes defeated</span></div><div class="result-box"><strong>${Math.round(g.teamDamage||0)}</strong><span>Damage dealt</span></div><div class="result-box"><strong>${score}</strong><span>Score</span></div></div>`
         : `<div class="results-score party-results"><div class="result-box"><strong>${runTime}</strong><span>Time</span></div><div class="result-box"><strong>${kills}</strong><span>Slimes defeated</span></div><div class="result-box"><strong>${Math.round(g.teamDamage||0)}</strong><span>Damage dealt</span></div><div class="result-box"><strong>${individualScore}</strong><span>Individual Score</span></div><div class="result-box"><strong>${score}</strong><span>Party Score</span></div></div>`;
-      node.innerHTML=`<div class="overlay-card"><div class="eyebrow">${runLabel}</div><h2>${g.phase==='won'?'The King Slime is defeated':'The slimes claim the arena'}</h2><p class="muted">${g.phase==='won'?'The coliseum is yours. A clean ten-wave clear.':survivalCopy}</p>${resultStats}<button class="btn" data-action="again">Back to the menu</button></div>`;
+      node.innerHTML=`<div class="overlay-card"><div class="eyebrow">${runLabel}</div><h2>${g.phase==='won'?'The King Slime is defeated':'The slimes claim the arena'}</h2><p class="muted">${g.phase==='won'?'The coliseum is yours. A clean ten-wave clear.':survivalCopy}</p>${resultStats}<div class="result-actions">${currentRoom.isHost?'<button class="btn" data-action="replay">Play again</button>':''}${g.phase==='won'&&!g.endless&&currentRoom.isHost?'<button class="btn secondary" data-action="endless">Continue to endless</button>':''}${!currentRoom.isHost?'<p class="muted">The host chooses whether to replay or continue.</p>':''}<button class="btn quiet" data-action="again">Main menu</button></div></div>`;
       node.querySelector('[data-action="again"]').addEventListener('click',leaveRoom);
+      for(const action of ['replay','endless']) node.querySelector(`[data-action="${action}"]`)?.addEventListener('click',()=>act(action).catch(()=>{}));
+      void refreshAccount();
     } else node.hidden=true;
   }
 
@@ -1563,6 +2483,8 @@
   }
   window.addEventListener('keydown',event=>{
     const key=MOVEMENT_KEY_CODES[event.code]||(event.key.length===1?event.key.toLowerCase():event.key);
+    if(['INPUT','TEXTAREA','SELECT'].includes(event.target.tagName))return;
+    if(key==='Escape' && currentScreen==='game' && !event.repeat){event.preventDefault();if(document.querySelector('.overlay:not(#game-overlay)'))return;if(currentRoom.mode==='solo')void act('pause',!currentRoom.game.paused).catch(()=>{});else showQuitConfirmation();return;}
     if(currentScreen==='title'&&(event.code==='Enter'||event.code==='Space')){event.preventDefault();renderMenu();return;}
     if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(key))event.preventDefault();
     if((key==='e'||key===' ')&&currentScreen==='game'&&!event.repeat){act('ability');return;}
@@ -1579,15 +2501,15 @@
     const isSolo=currentRoom?.mode==='solo';
     modal.innerHTML=`<div class="overlay-card settings-card" style="text-align:left">
       <div class="eyebrow">Slime Slayer</div><h2>Settings &amp; quick rules</h2>
-      <p class="small muted">Move with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrow keys. Your hero attacks automatically when a slime is in range. Every hero starts with a 5% chance to deal double damage with a critical hit. Press <kbd>E</kbd> to use your champion ability.</p>
-      <p class="small muted">Survive the ten waves and choose one of three randomized upgrades after each cleared wave. Ravela's Mark of Death instantly marks a slime within bow range, making it take 50% more damage for 3.5 seconds. ${isSolo?'A solo run ends when your champion falls.':'In co-op, fallen champions return between waves.'} Red slimes burst when defeated. Watch for ranged shots from green, yellow, and black slimes.</p>
+      <p class="small muted">Move with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrow keys. Your hero attacks automatically when a slime is in range. Critical hits deal bonus damage; Aram begins with 10% critical chance and the other champions begin with 5%. Press <kbd>E</kbd> to use your champion ability.</p>
+      <p class="small muted">Survive the ten waves and choose one of three randomized upgrades after each cleared wave. Ravela's Mark of Death instantly marks a slime within bow range, making it take 50% more damage for 3.5 seconds. ${isSolo?'A solo run ends when your champion falls.':'In co-op, fallen champions return between waves.'} Watch the red warnings: red slimes detonate, yellow slimes charge, green slimes shoot, and black slimes rain slime.</p>
       <div class="settings-group">
         <div class="settings-group-title">Audio</div>
         <label class="setting-label" for="master-volume-slider"><span>Master volume</span><output id="master-volume-label">${Math.round(masterVolume*100)}%</output></label>
         <input class="setting-range" id="master-volume-slider" type="range" min="0" max="100" value="${Math.round(masterVolume*100)}">
         <label class="setting-label" for="music-volume-slider"><span>Music</span><output id="music-volume-label">${Math.round(musicVolume*100)}%</output></label>
         <input class="setting-range" id="music-volume-slider" type="range" min="0" max="100" value="${Math.round(musicVolume*100)}">
-        <p class="settings-note muted">A music track has not been added yet; this level will apply when one is available.</p>
+        <p class="settings-note muted">Hills of the Colosseum · original looping instrumental.</p>
         <label class="setting-label" for="sfx-volume-slider"><span>Sound effects</span><output id="sfx-volume-label">${Math.round(volume*100)}%</output></label>
         <input class="setting-range" id="sfx-volume-slider" type="range" min="0" max="100" value="${Math.round(volume*100)}">
       </div>
@@ -1598,9 +2520,10 @@
         <label class="setting-toggle" for="fps-display-toggle"><span>Show FPS counter</span><input id="fps-display-toggle" type="checkbox" ${showFpsCounter?'checked':''}></label>
         <label class="setting-toggle" for="ping-display-toggle"><span>Show ping</span><input id="ping-display-toggle" type="checkbox" ${showPingDisplay?'checked':''}></label>
       </div>
-      <div class="settings-actions">${quitButton}<button class="btn" data-action="close">Close</button></div>
+      <div class="settings-actions">${account?'<button class="btn quiet" data-action="signout">Sign out</button>':''}${quitButton}<button class="btn" data-action="close">Close</button></div>
     </div>`;
     document.body.append(modal);
+    modal.querySelector('[data-action="signout"]')?.addEventListener('click',showSignOut);
     modal.querySelector('[data-action="close"]').addEventListener('click',()=>modal.remove());
     modal.querySelector('[data-action="quit"]')?.addEventListener('click',()=>{modal.remove();showQuitConfirmation();});
     modal.addEventListener('click',event=>{if(event.target===modal)modal.remove();});
@@ -1609,6 +2532,7 @@
         const percent=Number(event.target.value);
         const level=percent/100;
         setValue(level);
+        syncGameAudio();
         localStorage.setItem(storageKey,String(level));
         modal.querySelector(`#${labelId}`).textContent=`${percent}%`;
         if(preview)sound(500,.08);
@@ -1652,9 +2576,11 @@
   // Invite links use an unguessable room token and bypass the manual code prompt.
   applyBrightness();
   const inviteToken = new URLSearchParams(window.location.search).get('invite');
+  void refreshAccount().then(()=>{
   if (inviteToken) {
     window.history.replaceState(null, document.title, `${window.location.pathname}${window.location.hash}`);
     app.innerHTML = '<section class="screen title-screen"><div class="title-screen-content"><h1>Joining party…</h1></div></section>';
     void joinRoom(inviteToken, { inviteToken: true });
   } else renderTitleScreen();
+  });
 })();

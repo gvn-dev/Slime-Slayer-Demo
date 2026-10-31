@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: slime-slayer
+    runtime: node
+    plan: starter
+    numInstances: 1
+    buildCommand: npm ci --omit=dev && npm run check
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 24.22.1
+      - key: NODE_ENV
+        value: production
+      - key: TRUST_PROXY
+        value: "true"
+      - key: SLIME_DB_PATH
+        value: /var/data/slime-slayer/accounts.sqlite
+    disk:
+      name: slime-slayer-data
+      mountPath: /var/data
+      sizeGB: 1

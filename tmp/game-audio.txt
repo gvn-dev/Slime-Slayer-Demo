@@ -1,0 +1,23 @@
+  const gameAudio={context:null,musicGain:null,sfxGain:null,buffers:null,loading:null,source:null,run:null,pendingSquelch:null,played:new Set()};
+  function syncGameAudio(){
+    const audio=gameAudio;if(!audio.context)return;
+    const g=currentRoom?.game,active=currentScreen==='game'&&currentRoom?.status==='playing';
+    audio.musicGain.gain.setTargetAtTime(active&&!g?.paused&&!document.hidden?masterVolume*musicVolume*.42:0,audio.context.currentTime,.12);
+    audio.sfxGain.gain.setTargetAtTime(masterVolume*volume*.7,audio.context.currentTime,.025);
+    if(!active){if(audio.source){audio.source.stop();audio.source.disconnect();audio.source=null;}audio.run=null;return;}
+    if(!audio.buffers)return;
+    if(audio.run!==g.runId){if(audio.source){audio.source.stop();audio.source.disconnect();}const track=audio.context.createBufferSource();track.buffer=audio.buffers.music;track.loop=true;track.connect(audio.musicGain);track.start();audio.source=track;audio.run=g.runId;}
+    if(!audio.played.has(g.runId)){audio.played.add(g.runId);const slime=audio.context.createBufferSource();slime.buffer=audio.buffers.slime;slime.connect(audio.sfxGain);slime.start();slime.onended=()=>slime.disconnect();}
+  }
+  async function unlockGameAudio(){
+    try{
+      const audio=gameAudio;
+      if(!audio.context){audio.context=new(window.AudioContext||window.webkitAudioContext)();audio.musicGain=audio.context.createGain();audio.sfxGain=audio.context.createGain();audio.musicGain.gain.value=0;audio.musicGain.connect(audio.context.destination);audio.sfxGain.connect(audio.context.destination);}
+      if(audio.context.state==='suspended')await audio.context.resume();
+      if(!audio.loading)audio.loading=Promise.all(['hills-of-the-colosseum.wav','slime-run-start.wav'].map(async name=>{const response=await fetch('/audio/'+name);if(!response.ok)throw Error('Audio asset unavailable');return audio.context.decodeAudioData(await response.arrayBuffer());})).then(([music,slime])=>{audio.buffers={music,slime};syncGameAudio();}).catch(()=>{audio.loading=null;});
+      syncGameAudio();
+    }catch{/* Browsers may defer audio until another explicit gesture. */}
+  }
+  document.addEventListener('pointerdown',()=>void unlockGameAudio(),{passive:true});
+  document.addEventListener('keydown',()=>void unlockGameAudio());
+  document.addEventListener('visibilitychange',syncGameAudio);
