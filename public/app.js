@@ -2,17 +2,30 @@
   'use strict';
 
   const HEROES = [
-    { id: 'Ravela', role: 'Glass cannon · single-target archer', flavor: 'A deadly mark turns one clean shot into a finishing blow.', color: '#d8c7ef', art: 'Ravela character art.png', ability: 'Mark of Death', abilityDescription: 'Strike the nearest slime and mark it to take 25% more damage for a short time.', stats: { hp: 20, attack: 24, speed: 175, range: 340, interval: 0.62, regen: 1, defense: 0 } },
-    { id: 'Fjord', role: 'Armored tank · close-range cleave', flavor: 'Slow, sturdy, and happiest surrounded by enemies.', color: '#ec9b4b', art: 'Fjord character art.png', ability: 'Fire Breath', abilityDescription: 'Breathe fire in front of Fjord, damaging slimes in a wide cone.', stats: { hp: 85, attack: 31, speed: 112, range: 94, interval: 1.05, regen: 1, defense: 0 } },
-    { id: 'Aram', role: 'Balanced duelist · parry and counter', flavor: 'A measured blade with a chance to stun attackers.', color: '#a4c5a1', art: 'Aram character art.png', ability: 'Riposte', abilityDescription: 'Become briefly invulnerable and stun nearby slimes.', stats: { hp: 50, attack: 22, speed: 145, range: 96, interval: 0.62, regen: 1, defense: 0 } },
-    { id: 'Gavrilta', role: 'Control mage · poison and roots', flavor: 'Green magic slows a crowd and wears it down over time.', color: '#82d66e', art: 'Gavrilla character art.png', ability: 'Wild Growth', abilityDescription: 'Root nearby slimes and poison them over time.', stats: { hp: 30, attack: 15, speed: 130, range: 300, interval: 1.12, regen: 1, defense: 0 } }
+    { id: 'Ravela', role: 'Glass cannon · single-target archer', flavor: 'Mark a target so every hero can hit harder.', color: '#d8c7ef', starColor: '#17141b', art: 'Ravela character art.png', ability: 'Mark of Death', abilityDescription: 'Instantly mark the nearest slime within bow range. All damage to it increases by 50%.', passive: { name: 'Double Shot', description: 'Chance to fire one volley at the two nearest enemies.', statLabel: 'Double Shot Chance', statKey: 'doubleShotChance', format: 'percent' }, stats: { hp: 25, attack: 30, speed: 175, range: 340, interval: 0.62, regen: 0, defense: 0, abilityCooldown: 12, critChance: 5, critMultiplier: 2 } },
+    { id: 'Fjord', role: 'Armored tank · close-range cleave', flavor: 'Slow, sturdy, and happiest surrounded by enemies.', color: '#ec9b4b', starColor: '#e7a64e', art: 'Fjord character art.png', ability: 'Fire Breath', abilityDescription: 'Breathe fire in front of Fjord, damaging slimes in a wide cone.', passive: { name: 'Iron Hide', description: 'Fjord takes reduced damage from every hit.', statLabel: 'Damage Reduction', statKey: 'defense', format: 'percent' }, stats: { hp: 85, attack: 31, speed: 112, range: 94, interval: 1.05, regen: 0.05, defense: 20, abilityCooldown: 10, critChance: 5, critMultiplier: 2 } },
+    { id: 'Aram', role: 'Balanced duelist · parry and counter', flavor: 'A measured blade with a chance to stun attackers.', color: '#a4c5a1', starColor: '#c3cbd4', art: 'Aram character art.png', ability: 'Riposte', abilityDescription: 'Become briefly invulnerable and stun nearby slimes.', passive: { name: 'Disrupting Strike', description: 'Basic attacks have a chance to stun their target.', statLabel: 'Stun Chance', statKey: 'passiveChance', format: 'percent' }, stats: { hp: 50, attack: 22, speed: 145, range: 96, interval: 0.62, regen: 0.05, defense: 0, abilityCooldown: 10, critChance: 5, critMultiplier: 2 } },
+    { id: 'Gavrilta', role: 'Control mage · poison and roots', flavor: 'Green magic slows a crowd and wears it down over time.', color: '#82d66e', starColor: '#7064c2', art: 'Gavrilla character art.png', ability: 'Wild Growth', abilityDescription: 'Root nearby slimes and poison them over time.', passive: { name: 'Toxic Orb', description: 'Basic attacks poison and root the struck slime.', statLabel: 'Poison Damage', statKey: 'poisonDamage', format: 'perTick' }, stats: { hp: 30, attack: 15, speed: 130, range: 300, interval: 1.12, regen: 0.05, defense: 0, abilityCooldown: 10, critChance: 5, critMultiplier: 2 } }
   ];
-  const UPGRADES = [
-    { id: 'power', icon: '⚔', name: 'Keen Edge', text: '+20% attack damage' },
-    { id: 'vigor', icon: '✚', name: 'Coliseum Grit', text: '+20% max health and heal' },
-    { id: 'swift', icon: '➤', name: 'Fleet Step', text: '+13% movement speed' },
-    { id: 'focus', icon: '✦', name: 'Deep Focus', text: 'Abilities recharge 14% faster' }
-  ];
+  const UPGRADE_CARDS = {
+    power: { icon: '⚔', name: 'Keen Edge', text: '+20% attack damage' },
+    vigor: { icon: '✚', name: 'Coliseum Grit', text: '+20% max health and heal' },
+    swift: { icon: '➤', name: 'Fleet Step', text: '+13% movement speed' },
+    focus: { icon: '✦', name: 'Deep Focus', text: 'Attacks and abilities recharge 14% faster' },
+    'ravela-range': { icon: '➶', name: "Hunter's Reach", text: '+10% range' },
+    'ravela-defense': { icon: '⬟', name: 'Warded Armor', text: '+5% defense' },
+    'ravela-mark-strength': { icon: '✦', name: 'Deadlier Mark', text: '10% Mark of Death damage increase' },
+    'ravela-shot-damage': { icon: '⚔', name: 'Piercing Shot', text: '+15% bow damage' },
+    'ravela-regen': { icon: '✚', name: 'Regrowth', text: '+0.1 HP/s' },
+    'ravela-mark-duration': { icon: '⌛', name: 'Lingering Mark', text: '+2s Mark of Death debuff duration' },
+    'ravela-double-shot': { icon: '➠', name: 'Twin Arrows', text: '+5% double shot chance' },
+    'ravela-mark-cooldown': { icon: '⌛', name: 'Quickened Mark', text: '−1s Mark of Death cooldown' },
+    'ravela-health': { icon: '✚', name: 'Vitality', text: '+5 HP' },
+    'ravela-move-speed': { icon: '➤', name: 'Fleet Step', text: '+10% movement speed' },
+    'ravela-attack-speed': { icon: '➠', name: 'Rapid Volley', text: '+10% attack speed' },
+    'ravela-crit-chance': { icon: '✧', name: 'Keen Eye', text: '+5% critical hit chance' },
+    'ravela-crit-damage': { icon: '✦', name: 'Lethal Aim', text: '+5% critical damage' }
+  };
   const MOVEMENT_KEY_CODES = { KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd' };
   const app = document.querySelector('#app');
   const toastNode = document.querySelector('#toast');
@@ -59,10 +72,22 @@
   let snapshots = [];
   let canvasResizeObserver = null;
   let lastMinimapRenderAt = 0;
-  let lastPartyStatusMarkup = '';
   let minimapDots = new Map();
   let overlayStateKey = '';
   const slimeSpriteCache = new Map();
+  const ravelaAimAngles = new Map();
+  const markSmokeOrigins = new Map();
+  const RAVELA_GAME_ART = {
+    sprite: loadGameArt('Ravela top-down sprite.png'),
+    bow: loadGameArt('Ravela bone bow.png'),
+    arrow: loadGameArt('Ravela bone arrow.png')
+  };
+
+  function loadGameArt(filename) {
+    const image = new Image();
+    image.src = `/art/${encodeURIComponent(filename)}?v=20261030-08`;
+    return image;
+  }
 
   function esc(value) {
     return String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
@@ -384,7 +409,7 @@
   function heroCard(h, compact = false, selected = selectedHero === h.id) {
     return `<button class="hero-card ${compact ? 'compact-hero-card' : ''} ${selected ? 'selected' : ''}" data-select-hero="${h.id}" aria-pressed="${selected}">
       <div class="portrait"><img src="/art/${encodeURIComponent(h.art)}" alt="${h.id} character art"></div>
-      <div class="hero-meta"><div class="hero-name"><span>${h.id}</span><span style="color:${h.id==='Ravela'?'#000000':h.color}">✦</span></div><div class="hero-role">${h.role}</div><div class="hero-flair">${h.flavor}</div></div></button>`;
+      <div class="hero-meta"><div class="hero-name"><span>${h.id}</span><span class="hero-star" style="color:${h.starColor}">✦</span></div><div class="hero-role">${h.role}</div><div class="hero-flair">${h.flavor}</div></div></button>`;
   }
   function renderSoloSelectKeepName() {
     const name = app.querySelector('#solo-player-name')?.value || playerName;
@@ -515,6 +540,25 @@
     const renderEventAt = serverAt => Number.isFinite(serverAt) && Number.isFinite(room.serverTime)
       ? at - Math.max(0, room.serverTime - serverAt)
       : null;
+    const effects = new Map((game?.effects || []).map(effect => {
+      const snapshotEffect = { ...effect, renderCreatedAt: renderEventAt(effect.createdAt) };
+      if (effect.kind === 'mark') {
+        const key = `${room.id}:${game?.startedAt || 0}:${effect.id}`;
+        let origin = markSmokeOrigins.get(key);
+        if (!origin) {
+          const source = (room.players || []).filter(player => player.hero === 'Ravela')
+            .sort((a, b) => Math.hypot(a.x - effect.x, a.y - effect.y) - Math.hypot(b.x - effect.x, b.y - effect.y))[0];
+          if (source) {
+            const distance = Math.hypot(source.x - effect.x, source.y - effect.y);
+            origin = { originX: source.x, originY: source.y, travelDuration: Math.max(.08, Math.min(.22, distance / 2100)) };
+            markSmokeOrigins.set(key, origin);
+            if (markSmokeOrigins.size > 128) markSmokeOrigins.delete(markSmokeOrigins.keys().next().value);
+          }
+        }
+        if (origin) Object.assign(snapshotEffect, origin);
+      }
+      return [effect.id, snapshotEffect];
+    }));
     snapshots.push({
       at, room,
       players: new Map((room.players || []).map(player => [player.id, player])),
@@ -522,9 +566,7 @@
       projectiles: new Map((game?.projectiles || []).map(projectile => [projectile.id, {
         ...projectile, renderCreatedAt: renderEventAt(projectile.createdAt)
       }])),
-      effects: new Map((game?.effects || []).map(effect => [effect.id, {
-        ...effect, renderCreatedAt: renderEventAt(effect.createdAt)
-      }]))
+      effects
     });
     if (snapshots.length > 8) snapshots.shift();
   }
@@ -769,11 +811,11 @@
   function enterGame() {
     if (!currentRoom) return;
     const solo = currentRoom.mode === 'solo';
+    const selfHeroProfile = hero(getSelf()?.hero);
     setScreen('game');
     smoothedMoveVector = { x: 0, y: 0 };
     lastMovementUpdateAt = performance.now();
     overlayStateKey = '';
-    lastPartyStatusMarkup = '';
     minimapDots = new Map();
     lastSeenPhase = currentRoom.game?.phase || '';
     app.innerHTML = `
@@ -786,16 +828,21 @@
           <button class="icon-btn gear-icon" title="Settings and controls" aria-label="Settings and controls" data-action="help">⚙</button>
         </header>
         <div class="game-body">
+          <aside class="left-panel" aria-label="Controls and player leaderboard">
+            <section class="side-card controls-card"><div class="side-title">Controls</div><div class="controls-line"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>Move</span></div><div class="controls-line"><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd><span>Move</span></div><div class="controls-line"><kbd>E</kbd><span>Champion ability</span></div><div class="controls-line muted">Attacks happen automatically</div></section>
+            ${solo ? `<section class="side-card solo-character-card"><div class="side-title">Your Champion</div><img class="solo-character-art" src="/art/${encodeURIComponent(selfHeroProfile.art)}" alt="${esc(selfHeroProfile.id)} character art"><div class="solo-character-name">${esc(selfHeroProfile.id)}</div></section>` : ''}
+            ${solo ? '' : '<section class="side-card leaderboard-card"><div class="side-title">Player Leaderboard</div><div class="leaderboard-list" id="leaderboard-list"></div></section>'}
+            <section class="side-card ability-card"><div class="side-title">Special Ability</div><div class="ability-name" id="ability-name">${esc(getSelf()?.abilityName || selfHeroProfile.ability)}</div><p class="ability-description" id="ability-description">${esc(selfHeroProfile.abilityDescription)}</p><div class="ability-cooldown-row"><span>Cooldown</span><strong id="ability-cooldown">10s</strong></div><div class="mark-stats" id="mark-stats" ${selfHeroProfile.id === 'Ravela' ? '' : 'hidden'}><div class="ability-cooldown-row"><span>Mark range</span><strong id="mark-range">340</strong></div><div class="ability-cooldown-row"><span>Mark duration</span><strong id="mark-duration">3.5s</strong></div><div class="ability-cooldown-row"><span>Damage increase</span><strong id="mark-bonus">50%</strong></div></div><button class="ability-chip sidebar-ability" id="ability-chip" type="button">E · ${esc(getSelf()?.abilityName || 'Ability')}</button></section>
+          </aside>
           <div class="arena-wrap"><canvas id="arena-background" aria-hidden="true"></canvas><canvas id="arena" aria-label="Top-down slime arena"></canvas>
             <div class="mobile-pad" id="mobile-pad" aria-label="Move your champion"></div>
             <div class="overlay" id="game-overlay" hidden></div>
           </div>
-          <aside class="side-panel">
+          <aside class="side-panel" aria-label="Arena information and champion stats">
             <section class="side-card radar-card"><div class="side-title">Arena Radar</div><div class="minimap" id="minimap"></div></section>
-            <section class="side-card"><div class="side-title">Champion Stats</div><div id="party-status"></div></section>
+            <section class="side-card champion-stats-card"><div class="side-title">${solo ? 'Champion Stats' : 'Party Champion Stats'}</div><div id="party-status"></div></section>
             <section class="side-card run-totals-card"><div class="side-title">Run Stats</div><div class="run-total"><span>Time:</span><strong id="run-time">00:00</strong></div><div class="run-total"><span>Kills:</span><strong id="kill-count">0</strong></div><div class="run-total"><span>Damage Done:</span><strong id="team-damage">0</strong></div><div class="run-total"><span>${solo ? 'Score:' : 'Party Score:'}</span><strong id="team-score">0</strong></div></section>
-            <section class="side-card controls-card"><div class="side-title">Controls</div><div class="controls-line"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move</div><div class="controls-line"><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> Move</div><div class="controls-line"><kbd>E</kbd> Champion ability</div><div class="controls-line muted">Get in range to attack</div></section>
-            <section class="side-card ability-card"><div class="side-title">Special Ability</div><div class="ability-name" id="ability-name">${esc(getSelf()?.abilityName || hero(getSelf()?.hero).ability)}</div><p class="ability-description" id="ability-description">${esc(hero(getSelf()?.hero).abilityDescription)}</p><div class="ability-cooldown-row"><span>Cooldown</span><strong id="ability-cooldown">10s</strong></div><button class="ability-chip sidebar-ability" id="ability-chip" type="button">E · ${esc(getSelf()?.abilityName || 'Ability')}</button></section>
+            <section class="side-card passive-card"><div class="side-title">Passive Ability</div><div class="ability-name" id="passive-name">${esc(selfHeroProfile.passive.name)}</div><p class="ability-description" id="passive-description">${esc(selfHeroProfile.passive.description)}</p><div class="ability-cooldown-row"><span id="passive-stat-label">${esc(selfHeroProfile.passive.statLabel)}</span><strong id="passive-stat-value">—</strong></div></section>
           </aside>
         </div>
         <footer class="game-bottombar"><div class="hero-hud-group"><span id="hero-hud">${hero(getSelf()?.hero).id}</span><div class="hero-hp-track" id="hero-hp-track" role="progressbar" aria-label="Champion HP" aria-valuemin="0" aria-valuemax="${getSelf()?.maxHp || 100}" aria-valuenow="${Math.max(0, Math.ceil(getSelf()?.hp ?? 0))}"><div class="hero-hp-fill" id="hero-hp-fill" style="width:100%"></div></div></div><div class="game-footer-right"><span class="muted">${solo ? 'Solo · SURVIVE' : 'Multiplayer · SURVIVE'}</span>${solo ? '<button class="icon-btn solo-pause-btn" id="solo-pause" type="button" aria-label="Pause game" aria-pressed="false">ll</button>' : ''}</div></footer>
@@ -912,7 +959,7 @@
     ctx.clearRect(0, 0, width, height);
     ctx.setTransform(scale, 0, 0, scale, ox, oy);
     const effects = visualEffects(frame, room);
-    for (const effect of effects) drawEffect(ctx, effect);
+    for (const effect of effects) drawEffect(ctx, effect, room, frame);
     const alpha = frame?.alpha ?? 1;
     drawProjectiles(ctx, room, frame, alpha);
     const oldEnemies = frame?.before?.enemies;
@@ -931,7 +978,7 @@
         hp: old.hp + (player.hp - old.hp) * alpha,
         alive: alpha < 1 ? old.alive : player.alive
       } : player;
-      drawHero(ctx, visualPlayer, x, y);
+      drawHero(ctx, visualPlayer, x, y, room, frame);
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
@@ -1022,9 +1069,36 @@
         point = projectilePositionAt(projectile, targetAt, snapshotRoom);
       }
       if (!point) continue;
-      ctx.save(); ctx.shadowBlur = 15; ctx.shadowColor = projectile.color || '#fff';
-      ctx.fillStyle = projectile.color || '#fff'; ctx.beginPath(); ctx.arc(point.x, point.y, projectile.radius || 6, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
+      const source = room.players?.find(player => player.id === projectile.from);
+      if (projectile.type === 'hero' && source?.hero === 'Ravela') {
+        const dx = current && old ? current.x - old.x : projectile.dirX || 1;
+        const dy = current && old ? current.y - old.y : projectile.dirY || 0;
+        const angle = Math.hypot(dx, dy) > 0.001 ? Math.atan2(dy, dx) : Math.atan2(projectile.dirY || 0, projectile.dirX || 1);
+        const outline = hero(source.hero).starColor;
+        ctx.save(); ctx.translate(point.x, point.y); ctx.rotate(angle);
+        const arrowArt = RAVELA_GAME_ART.arrow;
+        if (arrowArt.complete && arrowArt.naturalWidth > 0) {
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(arrowArt, -14, -5.25, 28, 10.5);
+        } else {
+          ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+          ctx.strokeStyle = outline; ctx.lineWidth = 3.3;
+          ctx.beginPath(); ctx.moveTo(-13, 0); ctx.lineTo(9, 0); ctx.stroke();
+          ctx.strokeStyle = '#d9ceb4'; ctx.lineWidth = 1.8;
+          ctx.beginPath(); ctx.moveTo(-13, 0); ctx.lineTo(8, 0); ctx.stroke();
+          ctx.fillStyle = '#f0e5ca'; ctx.strokeStyle = outline; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(6, -4); ctx.lineTo(8, 0); ctx.lineTo(6, 4); ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.strokeStyle = outline; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(-12, 0); ctx.lineTo(-16, -3); ctx.moveTo(-12, 0); ctx.lineTo(-16, 3); ctx.stroke();
+        }
+        ctx.restore();
+      } else {
+        const outline = source?.hero ? hero(source.hero).starColor : '#ddd6c8';
+        ctx.save();
+        ctx.fillStyle = projectile.color || '#fff'; ctx.strokeStyle = outline; ctx.lineWidth = 1.25;
+        ctx.beginPath(); ctx.arc(point.x, point.y, projectile.radius || 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.restore();
+      }
     }
   }
   function drawArenaPillars(ctx) {
@@ -1077,9 +1151,13 @@
     ctx.save(); ctx.translate(x, y);
     ctx.globalAlpha = e.stunnedUntil > Date.now() ? .65 : 1;
     ctx.drawImage(sprite.canvas, -sprite.size / 2, -sprite.size / 2, sprite.size, sprite.size);
-    if (e.markedUntil > Date.now()) {
-      ctx.save(); ctx.fillStyle='#fff0bd'; ctx.shadowColor='#f2bd62'; ctx.shadowBlur=10;
-      ctx.font='bold 13px Georgia,serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('☠',0,-r-21); ctx.restore();
+    const markRemaining = (e.markedUntil || 0) - Date.now();
+    if (markRemaining > 0) {
+      const markDuration = Math.max(1, e.markDurationMs || 3500);
+      const fade = Math.max(0, Math.min(1, markRemaining / markDuration));
+      ctx.save(); ctx.globalAlpha *= fade; ctx.fillStyle='#fff';
+      ctx.font='bold 24px Georgia,serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.lineWidth=1.25; ctx.strokeStyle='rgba(24,21,25,.92)'; ctx.strokeText('☠',0,-r-24); ctx.fillText('☠',0,-r-24); ctx.restore();
     }
     if (e.hp < e.maxHp || e.type === 'king') {
       const bw = r*2.2; ctx.fillStyle='rgba(13,12,15,.8)'; ctx.fillRect(-bw/2,-r-11,bw,4);
@@ -1088,29 +1166,113 @@
     if (e.type==='king') { ctx.fillStyle='#f0d16f'; ctx.font='bold 15px Georgia'; ctx.textAlign='center'; ctx.fillText('♛',0,-r-14); }
     ctx.restore();
   }
-  function drawHero(ctx, p, x = p.x, y = p.y) {
+  function visualEnemyPosition(enemy, frame) {
+    const previous = frame?.before?.enemies?.get(enemy.id);
+    const current = frame?.after?.enemies?.get(enemy.id) || enemy;
+    if (previous && current && frame?.before !== frame?.after) {
+      const alpha = Math.max(0, Math.min(1, frame?.alpha ?? 1));
+      return { x: previous.x + (current.x - previous.x) * alpha, y: previous.y + (current.y - previous.y) * alpha };
+    }
+    return { x: enemy.x, y: enemy.y };
+  }
+  function visualPlayerPosition(player, frame) {
+    const previous = frame?.before?.players?.get(player.id);
+    const current = frame?.after?.players?.get(player.id) || player;
+    if (previous && current && frame?.before !== frame?.after) {
+      const alpha = Math.max(0, Math.min(1, frame?.alpha ?? 1));
+      return { x: previous.x + (current.x - previous.x) * alpha, y: previous.y + (current.y - previous.y) * alpha };
+    }
+    return { x: player.x, y: player.y };
+  }
+  function ravelaBowAimAngle(player, x, y, room, frame) {
+    const enemies = room?.game?.enemies || [];
+    const serverNow = room?.serverTime || Date.now();
+    let target = enemies
+      .filter(enemy => enemy.markedUntil > serverNow)
+      .sort((a, b) => (b.markStartedAt || 0) - (a.markStartedAt || 0))[0] || null;
+    if (!target) {
+      const latestShot = (room?.game?.projectiles || [])
+        .filter(projectile => projectile.type === 'hero' && projectile.from === player.id && serverNow - (projectile.createdAt || 0) < 900)
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
+      if (latestShot) target = enemies.find(enemy => enemy.id === latestShot.target) || null;
+    }
+    if (!target) {
+      const range = Number(player.stats?.range) || HEROES[0].stats.range;
+      let closestDistance = range;
+      for (const enemy of enemies) {
+        const position = visualEnemyPosition(enemy, frame);
+        const distance = Math.hypot(position.x - x, position.y - y);
+        if (distance <= closestDistance) { target = enemy; closestDistance = distance; }
+      }
+    }
+    const targetPosition = target ? visualEnemyPosition(target, frame) : null;
+    const requestedAngle = targetPosition ? Math.atan2(targetPosition.y - y, targetPosition.x - x) : null;
+    const restAngle = Math.atan2(7, 18);
+    const targetAimBlend = requestedAngle === null ? 0 : 1;
+    const now = performance.now();
+    const previous = ravelaAimAngles.get(player.id);
+    if (!previous) {
+      const angle = requestedAngle ?? restAngle;
+      ravelaAimAngles.set(player.id, { angle, aimBlend: targetAimBlend, at: now });
+      return { angle, aimBlend: targetAimBlend };
+    }
+    const targetAngle = requestedAngle ?? restAngle;
+    const delta = Math.atan2(Math.sin(targetAngle - previous.angle), Math.cos(targetAngle - previous.angle));
+    const elapsed = Math.max(0, Math.min(100, now - previous.at));
+    const angle = previous.angle + delta * (1 - Math.exp(-elapsed / 70));
+    const previousBlend = previous.aimBlend ?? (requestedAngle === null ? 0 : 1);
+    const aimBlend = previousBlend + (targetAimBlend - previousBlend) * (1 - Math.exp(-elapsed / 90));
+    ravelaAimAngles.set(player.id, { angle, aimBlend, at: now });
+    return { angle, aimBlend };
+  }
+  function drawHero(ctx, p, x = p.x, y = p.y, room = currentRoom, frame = null) {
     const h = hero(p.hero);
     ctx.save(); ctx.translate(x,y);
     if (!p.alive) { ctx.globalAlpha=.42; }
-    ctx.shadowColor=h.color; ctx.shadowBlur=p.id===playerId?19:11;
-    ctx.fillStyle='rgba(12,12,15,.5)'; ctx.beginPath(); ctx.ellipse(1,5,19,10,0,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle=h.color; ctx.beginPath(); ctx.arc(0,0,15,0,Math.PI*2); ctx.fill();
-    ctx.shadowBlur=0; ctx.strokeStyle=p.id===playerId?'#fff5db':'rgba(255,255,255,.65)'; ctx.lineWidth=p.id===playerId?3:2; ctx.stroke();
-    ctx.fillStyle='#211c20'; ctx.font='700 12px Inter, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(p.hero.slice(0,1),0,1);
-    if (p.marked) { ctx.strokeStyle='#f0bc58'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(0,0,21,0,Math.PI*2); ctx.stroke(); }
-    ctx.fillStyle='#fff1d7'; ctx.font='600 11px Inter,sans-serif'; ctx.fillText(p.name.slice(0,12),0,-25);
-    const w=34; ctx.fillStyle='rgba(15,13,14,.75)'; ctx.fillRect(-w/2,20,w,4); ctx.fillStyle=p.hp/p.maxHp>.33?'#83cb77':'#ef7260'; ctx.fillRect(-w/2,20,w*Math.max(0,p.hp/p.maxHp),4);
-    if (!p.alive) { ctx.fillStyle='#fff'; ctx.font='700 9px Inter'; ctx.fillText('DOWN',0,34); }
+    const ravelaSprite = p.hero === 'Ravela' && RAVELA_GAME_ART.sprite.complete && RAVELA_GAME_ART.sprite.naturalWidth > 0;
+    ctx.fillStyle='rgba(12,12,15,.5)'; ctx.beginPath(); ctx.ellipse(1,5,ravelaSprite?23.75:19,ravelaSprite?12.5:10,0,0,Math.PI*2); ctx.fill();
+    if (ravelaSprite) {
+      ctx.save(); ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(RAVELA_GAME_ART.sprite, -27.5, -30, 55, 60);
+      ctx.restore();
+      const bow = RAVELA_GAME_ART.bow;
+      if (bow.complete && bow.naturalWidth > 0) {
+        const bowWidth = 28, bowHeight = 40, aim = ravelaBowAimAngle(p, x, y, room, frame);
+        const orbitRadius = 20;
+        const gripX = Math.cos(aim.angle) * orbitRadius;
+        const gripY = Math.sin(aim.angle) * orbitRadius;
+        ctx.save(); ctx.translate(gripX, gripY); ctx.rotate(aim.angle * aim.aimBlend); ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(bow, -bowWidth * (7 / 24), -bowHeight * (21 / 44), bowWidth, bowHeight);
+        ctx.restore();
+      }
+    } else {
+      ctx.fillStyle=h.color; ctx.beginPath(); ctx.arc(0,0,15,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle=h.starColor; ctx.lineWidth=1.5; ctx.stroke();
+      ctx.fillStyle='#211c20'; ctx.font='700 12px Inter, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(p.hero.slice(0,1),0,1);
+    }
+    if (p.marked) { ctx.strokeStyle='#f0bc58'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(0,0,ravelaSprite?31:21,0,Math.PI*2); ctx.stroke(); }
+    ctx.fillStyle='#fff1d7'; ctx.font='600 11px Inter,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(p.name.slice(0,12),0,ravelaSprite?-36:-25);
+    const w=34; const healthY=ravelaSprite?32:20; ctx.fillStyle='rgba(15,13,14,.75)'; ctx.fillRect(-w/2,healthY,w,4); ctx.fillStyle=p.hp/p.maxHp>.33?'#83cb77':'#ef7260'; ctx.fillRect(-w/2,healthY,w*Math.max(0,p.hp/p.maxHp),4);
+    if (!p.alive) { ctx.fillStyle='#fff'; ctx.font='700 9px Inter'; ctx.fillText('DOWN',0,ravelaSprite?49:34); }
     ctx.restore();
   }
-  function drawEffect(ctx, effect) {
+  function drawEffect(ctx, effect, room = currentRoom, frame = null) {
     const maxLife = Number.isFinite(effect.maxLife) && effect.maxLife > 0 ? effect.maxLife : 1;
     const life = Number.isFinite(effect.life) ? effect.life : 0;
     const effectRadius = Number.isFinite(effect.radius) ? Math.max(0, effect.radius) : 0;
     const t = Math.max(0,Math.min(1,life/maxLife));
     ctx.save(); ctx.globalAlpha=t; ctx.strokeStyle=effect.color; ctx.fillStyle=effect.color;
     const radius=Math.max(0,effectRadius*(1.25-t*.25));
-    if (effect.kind==='breath') {
+    if (effect.kind==='critical') {
+      ctx.globalAlpha=t; ctx.fillStyle=effect.color; ctx.shadowColor=effect.color; ctx.shadowBlur=10;
+      ctx.font='700 12px Inter,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('CRITICAL!',effect.x,effect.y-16-(1-t)*18);
+    } else if (effect.kind==='mark') {
+      drawMarkSmoke(ctx, effect, room, frame);
+      ctx.globalAlpha=t*.9; ctx.lineWidth=4; ctx.beginPath(); ctx.arc(effect.x,effect.y,radius,0,Math.PI*2); ctx.stroke();
+      ctx.globalAlpha=t; ctx.font='700 16px Georgia,serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('✦',effect.x,effect.y);
+    } else if (effect.kind==='breath') {
       ctx.globalAlpha=t*.2; ctx.beginPath(); ctx.arc(effect.x,effect.y,radius,0,Math.PI*2); ctx.fill();
       ctx.globalAlpha=t*.85; ctx.lineWidth=7*t; ctx.beginPath(); ctx.arc(effect.x,effect.y,radius*.84,Math.PI*1.1,Math.PI*1.9); ctx.stroke();
     } else if (effect.kind==='roots') {
@@ -1120,6 +1282,42 @@
       ctx.globalAlpha=t*(effect.kind==='pop'?.38:.72); ctx.lineWidth=effect.kind==='slash'?7:3;
       ctx.beginPath(); ctx.arc(effect.x,effect.y,Math.max(6,radius*(1-t*.35)),0,Math.PI*2); ctx.stroke();
       if(effect.kind==='pop'||effect.kind==='burst'){ctx.globalAlpha=t*.35;ctx.beginPath();ctx.arc(effect.x,effect.y,Math.max(0,radius*.45*(1-t)),0,Math.PI*2);ctx.fill();}
+    }
+    ctx.restore();
+  }
+  function drawMarkSmoke(ctx, effect, room, frame) {
+    const source = room?.players?.filter(player => player.hero === 'Ravela')
+      .map(player => ({ player, point: visualPlayerPosition(player, frame) }))
+      .sort((a, b) => Math.hypot(a.point.x - effect.x, a.point.y - effect.y) - Math.hypot(b.point.x - effect.x, b.point.y - effect.y))[0];
+    const originX = Number.isFinite(effect.originX) ? effect.originX : source?.point.x;
+    const originY = Number.isFinite(effect.originY) ? effect.originY : source?.point.y;
+    if (!Number.isFinite(originX) || !Number.isFinite(originY)) return;
+    const dx=effect.x-originX,dy=effect.y-originY;
+    const distance=Math.hypot(dx,dy);
+    if(distance<1) return;
+    const travel = Math.max(.08, Number.isFinite(effect.travelDuration) ? effect.travelDuration : Math.max(.08, Math.min(.22, distance / 2100)));
+    const elapsed=Math.max(0,effect.maxLife-effect.life);
+    const fadeOut = Math.max(0, Math.min(1, (elapsed - travel) / .16));
+    if (fadeOut >= 1) return;
+    const progress=Math.max(0,Math.min(1,elapsed/travel));
+    const normalX=-dy/distance,normalY=dx/distance;
+    ctx.save();
+    ctx.lineCap='round'; ctx.strokeStyle='rgba(8,7,10,.72)'; ctx.lineWidth=4.5;
+    ctx.globalAlpha*=.34*(1-fadeOut)*(.75+progress*.25);
+    ctx.beginPath(); ctx.moveTo(originX,originY); ctx.lineTo(originX+dx*progress,originY+dy*progress); ctx.stroke();
+    const puffCount=9;
+    for(let i=0;i<puffCount;i++) {
+      const fraction=progress*(1-i/(puffCount-1));
+      const jitter=Math.sin(effect.id*.37+i*1.91+progress*5.2)*(2+i*.18);
+      const px=originX+dx*fraction+normalX*jitter;
+      const py=originY+dy*fraction+normalY*jitter;
+      const radius=3.5+(i%3)*1.4+progress*1.6;
+      const opacity=.48*(1-i/(puffCount+2))*(.9+progress*.1)*(1-fadeOut);
+      const gradient=ctx.createRadialGradient(px,py,0,px,py,radius);
+      gradient.addColorStop(0,`rgba(7,6,9,${opacity})`);
+      gradient.addColorStop(.6,`rgba(11,9,13,${opacity*.7})`);
+      gradient.addColorStop(1,'rgba(11,9,13,0)');
+      ctx.globalAlpha=1; ctx.fillStyle=gradient; ctx.beginPath(); ctx.arc(px,py,radius,0,Math.PI*2); ctx.fill();
     }
     ctx.restore();
   }
@@ -1159,11 +1357,35 @@
     const damage=document.querySelector('#team-damage'); if(damage) damage.textContent=Math.round(g.teamDamage||0);
     const score=document.querySelector('#team-score'); if(score) score.textContent=Math.round((currentRoom.players||[]).reduce((sum,p)=>sum+p.score,0)+(g.waveBonus||0));
     const status=document.querySelector('#party-status');
-    const statusMarkup=visualPlayers.map(p=>{
-      const profile=hero(p.hero); const stats=profile.stats;
-      return `<div class="party-row"><div class="party-row-heading"><div class="party-dot" style="color:${profile.color}">${profile.id[0]}</div><div class="party-player-name"><strong>${esc(p.name)}${p.id===playerId?' [You]':''}</strong><small>${esc(profile.id)}</small></div><span class="party-hp">HP ${Math.max(0,Math.ceil(p.hp))}/${p.maxHp}</span></div><div class="hp-track"><div class="hp-fill" style="width:${p.maxHp?Math.max(0,Math.round(p.hp/p.maxHp*100)):0}%;background:${p.alive?'#79bb70':'#e76850'}"></div></div><div class="hero-stat-line"><span><small>Attack:</small> <strong>${stats.attack}</strong></span><span><small>Range:</small> <strong>${stats.range}</strong></span><span><small>Speed:</small> <strong>${stats.speed}</strong></span><span><small>Attack Speed:</small> <strong>${(1/stats.interval).toFixed(1)}/s</strong></span><span><small>Regen:</small> <strong>${stats.regen} HP/20s</strong></span><span><small>Defense:</small> <strong>${stats.defense}</strong></span></div><div class="player-run-line"><span>Damage Done: ${Math.round(p.damage||0)}</span><span>Kills: ${p.kills||0}</span>${currentRoom.mode==='coop'?`<span>Deaths: ${p.deaths||0}</span>`:''}</div></div>`;
-    }).join('');
-    if(status && statusMarkup!==lastPartyStatusMarkup) { status.innerHTML=statusMarkup; lastPartyStatusMarkup=statusMarkup; }
+    if(status){
+      const statusMarkup=visualPlayers.map(p=>{
+        const profile=hero(p.hero); const stats=p.stats||profile.stats; const buff=p.buff||{};
+        const attack=stats.damage??(stats.attack*(buff.damage||1));
+        const range=stats.range??profile.stats.range*(buff.range||1);
+        const speed=stats.speed??profile.stats.speed*(buff.speed||1);
+        const interval=stats.interval??profile.stats.interval*(buff.cooldown||1)/(buff.attackSpeed||1);
+        const attackSpeed=1/Math.max(.01,interval);
+        const defense=stats.defense??Math.min(75,profile.stats.defense+(buff.defense||0));
+        const critChance=stats.critChance==null?profile.stats.critChance:stats.critChance*100;
+        const critDamage=stats.critMultiplier==null?profile.stats.critMultiplier*100:stats.critMultiplier*100;
+        const regen=Number(stats.regen||0).toFixed(2).replace(/\.?0+$/,'');
+        const hp=Math.max(0,Math.ceil(p.hp||0));
+        const maxHp=Math.max(1,p.maxHp||stats.maxHp||profile.stats.hp);
+        const hpPercent=Math.max(0,Math.min(100,Math.round(hp/maxHp*100)));
+        return `<div class="party-row"><div class="party-row-heading"><div class="party-dot" style="color:${profile.color}">${profile.id[0]}</div><div class="party-player-name"><strong>${esc(p.name)}${p.id===playerId?' [You]':''}</strong><small>${esc(profile.id)}</small></div><span class="party-hp">HP ${hp}/${maxHp}</span></div><div class="hp-track"><div class="hp-fill" style="width:${hpPercent}%;background:${p.alive?'#79bb70':'#e76850'}"></div></div><div class="hero-stat-line"><span><small>Attack:</small> <strong>${Math.round(attack)}</strong></span><span><small>Range:</small> <strong>${Math.round(range)}</strong></span><span><small>Speed:</small> <strong>${Math.round(speed)}</strong></span><span><small>Attack Speed:</small> <strong>${attackSpeed.toFixed(1)}/s</strong></span><span><small>Regen:</small> <strong>${regen} HP/s</strong></span><span><small>Defense:</small> <strong>${Math.round(defense)}%</strong></span><span><small>Crit Chance:</small> <strong>${Math.round(critChance)}%</strong></span><span><small>Crit Damage:</small> <strong>${Math.round(critDamage)}%</strong></span></div><div class="player-run-line"><span>Score: ${Math.round(p.score||0)}</span><span>Damage: ${Math.round(p.damage||0)}</span><span>Kills: ${p.kills||0}</span>${currentRoom.mode==='coop'?`<span>Deaths: ${p.deaths||0}</span>`:''}</div></div>`;
+      }).join('');
+      if(status.innerHTML!==statusMarkup) status.innerHTML=statusMarkup||'<div class="leaderboard-empty">Waiting for players…</div>';
+    }
+    const leaderboard=document.querySelector('#leaderboard-list');
+    if(leaderboard){
+      const ranked=[...visualPlayers].sort((a,b)=>(Number(b.score)||0)-(Number(a.score)||0)||(Number(b.kills)||0)-(Number(a.kills)||0)||String(a.name).localeCompare(String(b.name)));
+      const leaderboardMarkup=ranked.map((p,index)=>{
+        const profile=hero(p.hero);
+        const hpPercent=p.maxHp?Math.max(0,Math.min(100,Math.round(p.hp/p.maxHp*100))):0;
+        return `<div class="leaderboard-row ${p.id===playerId?'is-self':''}"><span class="leaderboard-rank">${index+1}</span><img class="leaderboard-portrait" src="/art/${encodeURIComponent(profile.art)}" alt="${esc(profile.id)} portrait"><span class="leaderboard-player"><strong>${esc(p.name)}${p.id===playerId?' · YOU':''}</strong><small>${esc(profile.id)} · ${Math.round(p.kills||0)} kills</small></span><span class="leaderboard-score">${Math.round(p.score||0)}</span><span class="leaderboard-hp" aria-label="${hpPercent}% health"><i style="width:${hpPercent}%;background:${p.alive?'#79bb70':'#e76850'}"></i></span></div>`;
+      }).join('');
+      if(leaderboard.innerHTML!==leaderboardMarkup) leaderboard.innerHTML=leaderboardMarkup||'<div class="leaderboard-empty">Waiting for players…</div>';
+    }
     const mini=document.querySelector('#minimap');
     const now=performance.now();
     if(mini && now-lastMinimapRenderAt>=200) {
@@ -1185,10 +1407,25 @@
     }
     if(self){
       const abilityProfile=hero(self.hero);
+      const selfStats=self.stats||abilityProfile.stats;
       const abilityName=self.abilityName||abilityProfile.ability||'Ability';
       const abilityNameNode=document.querySelector('#ability-name'); if(abilityNameNode) abilityNameNode.textContent=abilityName;
       const abilityDescription=document.querySelector('#ability-description'); if(abilityDescription) abilityDescription.textContent=abilityProfile.abilityDescription||'';
-      const abilityCooldown=document.querySelector('#ability-cooldown'); if(abilityCooldown) abilityCooldown.textContent=`${(10*(self.buff?.cooldown||1)).toFixed(1).replace(/\.0$/,'')}s`;
+      const abilityCooldown=document.querySelector('#ability-cooldown'); if(abilityCooldown) abilityCooldown.textContent=`${(selfStats.abilityCooldown??(abilityProfile.stats.abilityCooldown*(self.buff?.cooldown||1)*(self.buff?.abilityCooldown||1))).toFixed(1).replace(/\.0$/,'')}s`;
+      const passive=abilityProfile.passive;
+      const passiveName=document.querySelector('#passive-name'); if(passiveName) passiveName.textContent=passive.name;
+      const passiveDescription=document.querySelector('#passive-description'); if(passiveDescription) passiveDescription.textContent=passive.description;
+      const passiveLabel=document.querySelector('#passive-stat-label'); if(passiveLabel) passiveLabel.textContent=passive.statLabel;
+      const passiveStatValue=selfStats[passive.statKey]||0;
+      const passiveValue=document.querySelector('#passive-stat-value');
+      if(passiveValue) passiveValue.textContent=passive.format==='percent'?`${Math.round(passiveStatValue*100)}%`:passive.format==='perTick'?`${passiveStatValue}/tick`:`${passiveStatValue}`;
+      const markStats=document.querySelector('#mark-stats');
+      if(markStats){
+        markStats.hidden=self.hero!=='Ravela';
+        const range=document.querySelector('#mark-range'); if(range) range.textContent=String(Math.round(Number(selfStats.range??abilityProfile.stats.range)));
+        const duration=document.querySelector('#mark-duration'); if(duration) duration.textContent=`${Number(selfStats.markDuration||3.5).toFixed(1).replace(/\.0$/,'')}s`;
+        const bonus=document.querySelector('#mark-bonus'); if(bonus) bonus.textContent=`${Math.round((selfStats.markBonus||0.5)*100)}%`;
+      }
       const chip=document.querySelector('#ability-chip');
       if(chip){const left=Math.ceil(self.abilityCooldown);chip.textContent=left>0?`${left}s · ${abilityName}`:`E · ${abilityName}`;chip.classList.toggle('ready',left<=0&&self.alive&&!g.paused);chip.disabled=left>0||!self.alive||g.paused;}
     }
@@ -1216,7 +1453,8 @@
     if(!node||!currentRoom?.game) return;
     const g=currentRoom.game; const self=getSelf();
     const phaseDisplayTimer=g.phase==='upgrade'?Math.ceil(g.phaseTimer||0):g.phase==='intro'?(g.wave===1&&(g.phaseTimer||0)>1.6?'title':'wave'):'';
-    const stateKey=`${g.phase}:${g.wave}:${Boolean(self?.upgradePicked)}:${phaseDisplayTimer}:${g.result||''}`;
+    const choiceKey=(self?.upgradeChoices||[]).join(',');
+    const stateKey=`${g.phase}:${g.wave}:${Boolean(self?.upgradePicked)}:${phaseDisplayTimer}:${choiceKey}:${g.result||''}`;
     if(stateKey===overlayStateKey)return;
     overlayStateKey=stateKey;
     node.classList.toggle('wave-intro-overlay',g.phase==='intro');
@@ -1235,7 +1473,8 @@
         const multiplayer=currentRoom.mode==='coop';
         const timerCopy=multiplayer?`Choose before the timer ends: ${Math.max(0,Math.ceil(g.phaseTimer||0))}s`:'The run stays paused until you choose.';
         const upgradeCopy=`Choose one lasting bonus for your run. ${timerCopy}`;
-        node.innerHTML=`<div class="overlay-card"><div class="eyebrow">Wave ${g.wave} cleared</div><h2>Choose an upgrade</h2><p class="muted small">${upgradeCopy}</p><div class="upgrade-grid">${UPGRADES.map(u=>`<button class="upgrade-card" data-upgrade="${u.id}"><div class="upgrade-icon">${u.icon}</div><strong>${u.name}</strong><span>${u.text}</span></button>`).join('')}</div><button class="btn quiet reject-upgrades" data-upgrade="skip">Reject all choices</button></div>`;
+        const upgradeCards=(self?.upgradeChoices||[]).map(id=>({id,card:UPGRADE_CARDS[id]})).filter(item=>item.card);
+        node.innerHTML=`<div class="overlay-card"><div class="eyebrow">Wave ${g.wave} cleared</div><h2>Choose an upgrade</h2><p class="muted small">${upgradeCopy}</p><div class="upgrade-grid">${upgradeCards.map(({id,card})=>`<button class="upgrade-card" data-upgrade="${id}"><div class="upgrade-icon">${card.icon}</div><strong>${card.name}</strong><span>${card.text}</span></button>`).join('')}</div></div>`;
         node.querySelectorAll('[data-upgrade]').forEach(button=>button.addEventListener('click',async()=>{await act('upgrade',button.dataset.upgrade);sound(520,.1,'triangle');}));
       }
     } else if(g.phase==='won'||g.phase==='lost') {
@@ -1340,8 +1579,8 @@
     const isSolo=currentRoom?.mode==='solo';
     modal.innerHTML=`<div class="overlay-card settings-card" style="text-align:left">
       <div class="eyebrow">Slime Slayer</div><h2>Settings &amp; quick rules</h2>
-      <p class="small muted">Move with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrow keys. Your hero attacks automatically when a slime is in range. Press <kbd>E</kbd> to use your champion ability.</p>
-      <p class="small muted">Survive the ten waves and pick one upgrade after each cleared wave. ${isSolo?'A solo run ends when your champion falls.':'In co-op, fallen champions return between waves.'} Red slimes burst when defeated. Watch for ranged shots from green, yellow, and black slimes.</p>
+      <p class="small muted">Move with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrow keys. Your hero attacks automatically when a slime is in range. Every hero starts with a 5% chance to deal double damage with a critical hit. Press <kbd>E</kbd> to use your champion ability.</p>
+      <p class="small muted">Survive the ten waves and choose one of three randomized upgrades after each cleared wave. Ravela's Mark of Death instantly marks a slime within bow range, making it take 50% more damage for 3.5 seconds. ${isSolo?'A solo run ends when your champion falls.':'In co-op, fallen champions return between waves.'} Red slimes burst when defeated. Watch for ranged shots from green, yellow, and black slimes.</p>
       <div class="settings-group">
         <div class="settings-group-title">Audio</div>
         <label class="setting-label" for="master-volume-slider"><span>Master volume</span><output id="master-volume-label">${Math.round(masterVolume*100)}%</output></label>

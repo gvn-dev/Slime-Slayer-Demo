@@ -21,7 +21,8 @@ Open <http://localhost:3000>. To play with another device on the same Wi-Fi, ope
 - Host handoff and reconnect using the browser's saved player identity.
 - Server-owned player movement, attacks, enemy behavior, health, wave progression, upgrades, score, and win/loss state.
 - Ten waves that follow the slime lineup in the design outline, with a King Slime on wave ten.
-- Automatic hero attacks, four abilities, four between-wave upgrades, co-op revival between waves, and no friendly fire.
+- Automatic hero attacks, critical hits for every hero, four abilities, and three randomized upgrade choices after each cleared wave.
+- Hero-keyed upgrade pools with three randomized choices after each cleared wave. Ravela has thirteen dedicated upgrades with per-card caps; the other heroes retain the existing four general upgrades for now.
 - Keyboard controls on desktop and an on-screen movement pad and ability button on touch screens.
 - A live FPS readout while playing. Rendering follows the display's animation-frame rate; a 120 Hz display can render at up to 120 FPS.
 - The four existing character illustrations in the selection screens. Arena sprites, effects, and the coliseum are canvas placeholders designed to be replaced as the final art is created.
@@ -30,7 +31,9 @@ Open <http://localhost:3000>. To play with another device on the same Wi-Fi, ope
 
 - Move with **WASD** or the **arrow keys**. On touch screens, drag the left movement pad.
 - Attacks happen automatically when a slime is in range.
+- Every hero has a 5% base critical-hit chance and 200% base critical damage. Champion stats show chance and damage separately.
 - Press **E** or tap the ability button to use the chosen hero's ability.
+- Ravela's Mark of Death instantly marks the nearest slime within bow range for 3.5 seconds, making it take 50% more damage from all sources. Its base cooldown is 12 seconds. Her passive has a 10% chance to fire at the two nearest slimes in one volley.
 - Clear a wave to choose one permanent upgrade. The next wave starts after each connected player chooses, or after the short intermission expires.
 - In co-op, a downed hero returns at the center between waves. If the whole party falls during a wave, the run ends.
 - Green, yellow, and black slimes can attack from range. Red slimes burst when defeated.

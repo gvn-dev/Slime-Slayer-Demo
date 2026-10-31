@@ -18,12 +18,28 @@ const CHARACTER_ART = {
   Aram: 'Aram character art.png',
   Gavrilta: 'Gavrilla character art.png'
 };
+const GAME_ART = ['Ravela top-down sprite.png', 'Ravela bone bow.png', 'Ravela bone arrow.png'];
 
 const HEROES = {
-  Ravela: { hp: 20, speed: 175, damage: 24, range: 340, interval: 0.62, kind: 'arrow', color: '#e4d7f5', ability: 'Mark of Death' },
-  Fjord: { hp: 85, speed: 112, damage: 31, range: 94, interval: 1.05, kind: 'cleave', color: '#ed9b4b', ability: 'Fire Breath' },
-  Aram: { hp: 50, speed: 145, damage: 22, range: 96, interval: 0.62, kind: 'sword', color: '#a6c3a3', ability: 'Riposte' },
-  Gavrilta: { hp: 30, speed: 130, damage: 15, range: 300, interval: 1.12, kind: 'orb', color: '#82db77', ability: 'Wild Growth' }
+  Ravela: { hp: 25, defense: 0, speed: 175, damage: 30, range: 340, interval: 0.62, regen: 0, abilityCooldown: 12, markBonus: 0.5, markDuration: 3.5, doubleShotChance: 0.1, critChance: 0.05, critMultiplier: 2, kind: 'arrow', color: '#e4d7f5', ability: 'Mark of Death' },
+  Fjord: { hp: 85, defense: 20, speed: 112, damage: 31, range: 94, interval: 1.05, regen: 0.05, abilityCooldown: 10, markBonus: 0, critChance: 0.05, critMultiplier: 2, kind: 'cleave', color: '#ed9b4b', ability: 'Fire Breath' },
+  Aram: { hp: 50, defense: 0, speed: 145, damage: 22, range: 96, interval: 0.62, regen: 0.05, abilityCooldown: 10, markBonus: 0, passiveChance: 0.1, critChance: 0.05, critMultiplier: 2, kind: 'sword', color: '#a6c3a3', ability: 'Riposte' },
+  Gavrilta: { hp: 30, defense: 0, speed: 130, damage: 15, range: 300, interval: 1.12, regen: 0.05, poisonDamage: 5, abilityCooldown: 10, markBonus: 0, critChance: 0.05, critMultiplier: 2, kind: 'orb', color: '#82db77', ability: 'Wild Growth' }
+};
+
+const UPGRADE_POOLS = {
+  Ravela: ['ravela-range', 'ravela-defense', 'ravela-mark-strength', 'ravela-shot-damage', 'ravela-regen', 'ravela-mark-duration', 'ravela-double-shot', 'ravela-mark-cooldown', 'ravela-health', 'ravela-move-speed', 'ravela-attack-speed', 'ravela-crit-chance', 'ravela-crit-damage'],
+  Fjord: ['power', 'vigor', 'swift', 'focus'],
+  Aram: ['power', 'vigor', 'swift', 'focus'],
+  Gavrilta: ['power', 'vigor', 'swift', 'focus']
+};
+
+const RAVELA_UPGRADE_MAX = {
+  'ravela-range': 10, 'ravela-defense': 5, 'ravela-mark-strength': 10,
+  'ravela-shot-damage': 10, 'ravela-regen': 5, 'ravela-mark-duration': 5,
+  'ravela-double-shot': 10, 'ravela-mark-cooldown': 5, 'ravela-health': 5,
+  'ravela-move-speed': 5, 'ravela-attack-speed': 10,
+  'ravela-crit-chance': 9, 'ravela-crit-damage': 10
 };
 
 const ENEMY = {
@@ -84,19 +100,41 @@ function makePlayer(id, name, hero) {
     x: WORLD.width / 2, y: WORLD.height / 2, hp: stats.hp, maxHp: stats.hp,
     alive: true, score: 0, damage: 0, kills: 0, deaths: 0, move: { x: 0, y: 0 }, facing: { x: 1, y: 0 },
     attackCooldown: 0, abilityCooldown: 0, stunnedUntil: 0, rootedUntil: 0, markedUntil: 0,
-    invulnerableUntil: 0, buff: { damage: 1, speed: 1, maxHp: 1, cooldown: 1 },
-    upgradePicked: false, lastSeen: Date.now(), lastInput: 0
+    invulnerableUntil: 0, buff: { damage: 1, speed: 1, maxHp: 1, cooldown: 1, range: 1, attackSpeed: 1, abilityCooldown: 1, markBonus: 0, defense: 0 },
+    upgradeLevels: {}, upgradePicked: false, upgradeChoices: [], lastSeen: Date.now(), lastInput: 0
   };
 }
 function heroStats(player) {
   const base = HEROES[player.hero] || HEROES.Ravela;
+  const levels = player.upgradeLevels || {};
+  const ravela = player.hero === 'Ravela';
+  const level = id => levels[`ravela-${id}`] || 0;
   return {
     ...base,
-    maxHp: Math.round(base.hp * player.buff.maxHp),
-    speed: base.speed * player.buff.speed,
-    damage: base.damage * player.buff.damage,
-    interval: base.interval * player.buff.cooldown
+    maxHp: Math.round(base.hp * player.buff.maxHp + (ravela ? 5 * level('health') : 0)),
+    speed: base.speed * player.buff.speed * (ravela ? 1 + 0.1 * level('move-speed') : 1),
+    damage: base.damage * player.buff.damage * (ravela ? 1.15 ** level('shot-damage') : 1),
+    range: base.range * player.buff.range * (ravela ? 1.1 ** level('range') : 1),
+    interval: base.interval * player.buff.cooldown / (player.buff.attackSpeed * (ravela ? 1 + 0.1 * level('attack-speed') : 1)),
+    abilityCooldown: (ravela ? Math.max(1, base.abilityCooldown - level('mark-cooldown')) : base.abilityCooldown) * player.buff.cooldown * player.buff.abilityCooldown,
+    markBonus: base.markBonus + player.buff.markBonus + (ravela ? 0.1 * level('mark-strength') : 0),
+    markDuration: base.markDuration ? base.markDuration + (ravela ? 2 * level('mark-duration') : 0) : undefined,
+    doubleShotChance: (base.doubleShotChance || 0) + (ravela ? 0.05 * level('double-shot') : 0),
+    regen: (base.regen || 0) + (ravela ? 0.1 * level('regen') : 0),
+    poisonDamage: base.poisonDamage,
+    defense: Math.min(75, base.defense + player.buff.defense + (ravela ? 5 * level('defense') : 0)),
+    critChance: base.critChance + (player.buff.critChance || 0) + (ravela ? 0.05 * level('crit-chance') : 0),
+    critMultiplier: base.critMultiplier + (player.buff.critDamage || 0) + (ravela ? 0.05 * level('crit-damage') : 0)
   };
+}
+function rollUpgradeChoices(player) {
+  const pool = [...(UPGRADE_POOLS[player.hero] || UPGRADE_POOLS.Ravela)]
+    .filter(id => player.hero !== 'Ravela' || (player.upgradeLevels?.[id] || 0) < RAVELA_UPGRADE_MAX[id]);
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, 3);
 }
 function getRoom(identifier) {
   const value = String(identifier || '');
@@ -132,9 +170,11 @@ function publicRoom(room, viewerId) {
     isHost: room.hostId === viewerId,
     players: room.players.map(p => ({
       id: p.id, name: p.name, hero: p.hero, ready: p.ready, online: isOnline(p, now),
-      x: p.x, y: p.y, hp: p.hp, maxHp: p.maxHp, alive: p.alive, score: p.score,
+      x: p.x, y: p.y, facing: p.facing, hp: p.hp, maxHp: p.maxHp, alive: p.alive, score: p.score,
       damage: p.damage, kills: p.kills, deaths: p.deaths, abilityCooldown: p.abilityCooldown,
+      stats: heroStats(p), upgradeLevels: p.upgradeLevels,
       abilityName: HEROES[p.hero]?.ability, upgradePicked: p.upgradePicked,
+      upgradeChoices: p.id === viewerId ? p.upgradeChoices : undefined,
       buff: p.buff, marked: p.markedUntil > now
     })),
     game: room.game ? {
@@ -192,13 +232,13 @@ function spawnEnemy(room, type) {
     maxHp: Math.ceil(spec.hp * scale), speed: spec.speed * (1 + (game.wave - 1) * 0.025),
     damage: spec.damage * (1 + (game.wave - 1) * 0.08), size: spec.size,
     color: spec.color, points: spec.points, cooldown: 0.7 + Math.random() * 1.5,
-    stunnedUntil: 0, rootedUntil: 0, slowUntil: 0, markedUntil: 0,
+    stunnedUntil: 0, rootedUntil: 0, slowUntil: 0, markedUntil: 0, markBonus: 0,
     dotUntil: 0, dotNext: 0, dotDamage: 0, dotBy: null, attackType: 'contact'
   });
 }
 function damagePlayer(player, amount, now) {
   if (!player.alive || player.invulnerableUntil > now) return false;
-  let damage = amount * (player.hero === 'Fjord' ? 0.8 : 1);
+  let damage = amount * (1 - heroStats(player).defense / 100);
   if (player.markedUntil > now) damage *= 1.25;
   const appliedDamage = Math.max(1, Math.round(damage));
   const previousHp = player.hp;
@@ -213,14 +253,17 @@ function damagePlayer(player, amount, now) {
   }
   return false;
 }
-function damageEnemy(room, enemy, amount, playerId, now) {
+function damageEnemy(room, enemy, amount, playerId, now, options = {}) {
   const game = room.game;
   if (!game.enemies.includes(enemy)) return;
-  const hit = Math.max(1, amount * (enemy.markedUntil > now ? 1.25 : 1));
+  const player = room.players.find(p => p.id === playerId);
+  const markedBonus = enemy.markedUntil > now ? (enemy.markBonus ?? 0.25) : 0;
+  const critical = Boolean(player && options.canCrit !== false && Math.random() < heroStats(player).critChance);
+  const hit = Math.max(1, amount * (1 + markedBonus) * (critical ? heroStats(player).critMultiplier : 1));
   enemy.hp -= hit;
   game.teamDamage += hit;
-  const player = room.players.find(p => p.id === playerId);
   if (player) { player.damage += hit; player.score += hit; }
+  if (critical) newEffect(game, enemy.x, enemy.y, '#ffe18a', enemy.size * 2.3, 'critical', 0.72);
   if (enemy.hp > 0) return;
   game.enemies = game.enemies.filter(e => e !== enemy);
   game.teamKills++;
@@ -232,14 +275,15 @@ function damageEnemy(room, enemy, amount, playerId, now) {
       if (target.alive && Math.hypot(target.x - enemy.x, target.y - enemy.y) < 105) damagePlayer(target, 16, now);
     }
     for (const other of [...game.enemies]) {
-      if (other !== enemy && Math.hypot(other.x - enemy.x, other.y - enemy.y) < 105) damageEnemy(room, other, 40, playerId, now);
+      if (other !== enemy && Math.hypot(other.x - enemy.x, other.y - enemy.y) < 105) damageEnemy(room, other, 40, playerId, now, { canCrit: false });
     }
   }
 }
-function nearestEnemy(game, x, y, range = Infinity) {
+function nearestEnemy(game, x, y, range = Infinity, excluded = null) {
   let best = null;
   let bestDistance = range;
   for (const enemy of game.enemies) {
+    if (enemy === excluded || enemy.id === excluded) continue;
     const d = Math.hypot(enemy.x - x, enemy.y - y);
     if (d < bestDistance) { best = enemy; bestDistance = d; }
   }
@@ -272,6 +316,7 @@ function beginWave(room, wave) {
   game.enemies = [];
   for (const p of room.players) {
     p.upgradePicked = false;
+    p.upgradeChoices = [];
     p.move = { x: 0, y: 0 };
     if (p.alive === false && room.mode === 'coop') {
       p.alive = true;
@@ -336,7 +381,7 @@ function updateGame(room, dt, now) {
     if (!player.alive) continue;
     const stats = heroStats(player);
     player.maxHp = stats.maxHp;
-    player.hp = Math.min(player.maxHp, player.hp + dt * 0.05);
+    player.hp = Math.min(player.maxHp, player.hp + dt * stats.regen);
     player.attackCooldown = Math.max(0, player.attackCooldown - dt);
     player.abilityCooldown = Math.max(0, player.abilityCooldown - dt);
     const move = now < player.rootedUntil || now < player.stunnedUntil ? { x: 0, y: 0 } : player.move;
@@ -360,19 +405,27 @@ function updateGame(room, dt, now) {
           newEffect(game, (player.x + target.x) / 2, (player.y + target.y) / 2, '#e8e7cc', 54, 'slash', 0.23);
           damageEnemy(room, target, stats.damage, player.id, now);
         } else {
-          const aimX = target.x - player.x;
-          const aimY = target.y - player.y;
-          const aimLength = Math.max(1, Math.hypot(aimX, aimY));
-          game.projectiles.push({
-            id: game.nextId++, type: 'hero', from: player.id, target: target.id,
-            x: player.x, y: player.y, originX: player.x, originY: player.y,
-            createdAt: now, launchedThisTick: true, speed: stats.kind === 'arrow' ? 560 : 390,
-            maxRange: stats.range, distanceTravelled: 0, dirX: aimX / aimLength, dirY: aimY / aimLength,
-            damage: stats.damage, color: stats.kind === 'arrow' ? '#f2e8ff' : '#8ee677',
-            radius: stats.kind === 'arrow' ? 6 : 9, poison: stats.kind === 'orb', mark: false
-          });
+          const targets = [target];
+          if (player.hero === 'Ravela' && Math.random() < stats.doubleShotChance) {
+            const secondTarget = nearestEnemy(game, player.x, player.y, stats.range, target);
+            if (secondTarget) targets.push(secondTarget);
+          }
+          for (const projectileTarget of targets) {
+            const aimX = projectileTarget.x - player.x;
+            const aimY = projectileTarget.y - player.y;
+            const aimLength = Math.max(1, Math.hypot(aimX, aimY));
+            if (player.hero === 'Ravela') player.facing = { x: aimX / aimLength, y: aimY / aimLength };
+            game.projectiles.push({
+              id: game.nextId++, type: 'hero', from: player.id, target: projectileTarget.id,
+              x: player.x, y: player.y, originX: player.x, originY: player.y,
+              createdAt: now, launchedThisTick: true, speed: stats.kind === 'arrow' ? 560 : 390,
+              maxRange: stats.range, distanceTravelled: 0, dirX: aimX / aimLength, dirY: aimY / aimLength,
+              damage: stats.damage, color: stats.kind === 'arrow' ? '#f2e8ff' : '#8ee677',
+              radius: stats.kind === 'arrow' ? 6 : 9, poison: stats.kind === 'orb', poisonDamage: stats.poisonDamage, mark: false
+            });
+          }
         }
-        if (player.hero === 'Aram' && Math.random() < 0.1) target.stunnedUntil = now + 700;
+        if (player.hero === 'Aram' && Math.random() < stats.passiveChance) target.stunnedUntil = now + 700;
       }
     }
   }
@@ -430,7 +483,7 @@ function updateGame(room, dt, now) {
       if (enemy.type === 'red') {
         // Red slimes rush the party and burst in a small flame blast.
         damageEnemy(room, enemy, enemy.hp + 1, null, now);
-      } else if (target.hero === 'Aram' && Math.random() < 0.1) {
+      } else if (target.hero === 'Aram' && Math.random() < heroStats(target).passiveChance) {
         enemy.stunnedUntil = now + 3000;
         newEffect(game, target.x, target.y, '#d9f2e2', 72, 'ring', 0.3);
       } else {
@@ -511,16 +564,18 @@ function updateGame(room, dt, now) {
         if (projectile.poison && game.enemies.includes(target)) {
           target.dotUntil = now + 2500;
           target.dotNext = now + 500;
-          target.dotDamage = 5;
+          target.dotDamage = projectile.poisonDamage || 5;
           target.dotBy = projectile.from;
           target.rootedUntil = Math.max(target.rootedUntil, now + 1000);
         }
-        if (projectile.mark && game.enemies.includes(target)) target.markedUntil = now + 3000;
-        const attacker = room.players.find(p => p.id === projectile.from);
-        if (attacker?.hero === 'Ravela' && game.enemies.includes(target) && Math.random() < 0.1) target.markedUntil = now + 3000;
+        if (projectile.mark && game.enemies.includes(target)) {
+          target.markedUntil = now + 3000;
+          target.markStartedAt = now;
+          target.markDurationMs = 3000;
+        }
       } else {
         const player = target;
-        if (player.hero === 'Aram' && Math.random() < 0.1) {
+        if (player.hero === 'Aram' && Math.random() < heroStats(player).passiveChance) {
           newEffect(game, player.x, player.y, '#d9f2e2', 64, 'ring', 0.35);
         } else {
           const downed = damagePlayer(player, projectile.damage, now);
@@ -554,7 +609,10 @@ function updateGame(room, dt, now) {
     if (game.wave === 10) { endRun(room, 'won'); return; }
     game.phase = 'upgrade';
     game.phaseTimer = room.mode === 'coop' ? 20 : null;
-    for (const p of room.players) p.upgradePicked = false;
+    for (const p of room.players) {
+      p.upgradePicked = false;
+      p.upgradeChoices = rollUpgradeChoices(p);
+    }
     newEffect(game, WORLD.width / 2, WORLD.height / 2, '#ffe8a2', 220, 'ring', 0.8);
   }
 }
@@ -564,13 +622,16 @@ function useAbility(room, player) {
   const now = Date.now();
   if (!game || game.paused || game.phase !== 'wave' || !player.alive || player.abilityCooldown > 0) return;
   const stats = heroStats(player);
-  player.abilityCooldown = 10 * player.buff.cooldown;
+  player.abilityCooldown = stats.abilityCooldown;
   if (player.hero === 'Ravela') {
-    const target = nearestEnemy(game, player.x, player.y, 480);
+    const target = nearestEnemy(game, player.x, player.y, stats.range);
     if (target) {
-      damageEnemy(room, target, stats.damage * 4.2, player.id, now);
-      if (game.enemies.includes(target)) target.markedUntil = now + 3500;
-      newEffect(game, target.x, target.y, '#f5e5ff', 82, 'burst', 0.42);
+      const currentBonus = target.markedUntil > now ? (target.markBonus || 0) : 0;
+      target.markedUntil = now + stats.markDuration * 1000;
+      target.markStartedAt = now;
+      target.markDurationMs = stats.markDuration * 1000;
+      target.markBonus = Math.max(currentBonus, stats.markBonus);
+      newEffect(game, target.x, target.y, '#f5e5ff', 82, 'mark', 0.55);
     }
   } else if (player.hero === 'Fjord') {
     const fx = player.facing.x || 1;
@@ -610,7 +671,7 @@ function serveStatic(req, res, pathname) {
   else if (pathname === '/style.css') file = path.join(PUBLIC, 'style.css');
   else if (pathname.startsWith('/art/')) {
     const key = decodeURIComponent(pathname.slice(5));
-    const allowed = Object.values(CHARACTER_ART);
+    const allowed = [...Object.values(CHARACTER_ART), ...GAME_ART];
     if (!allowed.includes(key)) return send(res, 404, { error: 'Not found' });
     file = path.join(ROOT, 'Art', key);
   } else return send(res, 404, { error: 'Not found' });
@@ -785,13 +846,29 @@ const server = http.createServer(async (req, res) => {
             power: () => { player.buff.damage *= 1.2; },
             vigor: () => { player.buff.maxHp *= 1.2; player.maxHp = heroStats(player).maxHp; player.hp = Math.min(player.maxHp, player.hp + Math.ceil(player.maxHp * 0.25)); },
             swift: () => { player.buff.speed *= 1.13; },
-            focus: () => { player.buff.cooldown *= 0.86; }
+            focus: () => { player.buff.cooldown *= 0.86; },
+            'ravela-range': () => {},
+            'ravela-defense': () => {},
+            'ravela-mark-strength': () => {},
+            'ravela-shot-damage': () => {},
+            'ravela-regen': () => {},
+            'ravela-mark-duration': () => {},
+            'ravela-double-shot': () => {},
+            'ravela-mark-cooldown': () => {},
+            'ravela-health': () => {},
+            'ravela-move-speed': () => {},
+            'ravela-attack-speed': () => {},
+            'ravela-crit-chance': () => {},
+            'ravela-crit-damage': () => {}
           };
-          if (body.value !== 'skip') {
-            if (!upgrades[body.value]) return send(res, 400, { error: 'Unknown upgrade.' });
-            upgrades[body.value]();
+          if (!Array.isArray(player.upgradeChoices) || !player.upgradeChoices.includes(body.value) || !upgrades[body.value]) return send(res, 400, { error: 'Upgrade was not offered to this player.' });
+          upgrades[body.value]();
+          if (player.hero === 'Ravela') {
+            player.upgradeLevels[body.value] = (player.upgradeLevels[body.value] || 0) + 1;
+            player.maxHp = heroStats(player).maxHp;
           }
           player.upgradePicked = true;
+          player.upgradeChoices = [];
         } else if (action === 'leave') {
           room.players = room.players.filter(p => p.id !== player.id);
           moveHost(room);
